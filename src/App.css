@@ -1,0 +1,390 @@
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --nus-orange: #ef7c00;
+  --nus-orange-dark: #c96800;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #e0e0e0;
+  --text: #1a1a1a;
+  --text-muted: #888;
+  --radius: 10px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+body { background: var(--bg); color: var(--text); }
+
+/* ── Layout ───────────────────────────────────────────── */
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 32px auto;
+  padding: 0 20px;
+}
+
+/* ── Header ───────────────────────────────────────────── */
+header {
+  background: var(--nus-orange);
+  color: white;
+  padding: 0 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0;
+  gap: 16px;
+}
+
+.header-title h1 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.cumulative-gpa {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.gpa-label {
+  font-size: 0.72rem;
+  opacity: 0.85;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gpa-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: white;
+}
+
+.gpa-value.muted { opacity: 0.5; }
+
+.gpa-units {
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+/* ── Upload Zone ──────────────────────────────────────── */
+.upload-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 40px 0;
+}
+
+.upload-zone {
+  width: 100%;
+  max-width: 520px;
+  background: var(--surface);
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 56px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.upload-zone:hover,
+.upload-zone.dragging {
+  border-color: var(--nus-orange);
+  background: #fff8f0;
+}
+
+.upload-icon { font-size: 3rem; margin-bottom: 12px; }
+
+.upload-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.upload-sub { color: var(--text-muted); font-size: 0.9rem; }
+
+/* ── Loading ──────────────────────────────────────────── */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-muted);
+}
+
+.loading-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  box-shadow: var(--shadow);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid #e0e0e0;
+  border-top-color: var(--nus-orange);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Divider ──────────────────────────────────────────── */
+.divider {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Error ────────────────────────────────────────────── */
+.error {
+  color: #c0392b;
+  background: #fdf3f3;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  max-width: 520px;
+}
+
+/* ── Semester Block ───────────────────────────────────── */
+.semester-block {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.semester-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #fafafa;
+  border-bottom: 1px solid var(--border);
+}
+
+.semester-heading h2 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sem-gpa {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  background: #f0f0f0;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.sem-gpa strong { color: var(--nus-orange); }
+
+/* ── Table ────────────────────────────────────────────── */
+.table-wrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+thead th {
+  background: #f7f7f7;
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.1s;
+}
+
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #fafafa; }
+tbody tr.row-su { opacity: 0.55; }
+
+td { padding: 8px 12px; vertical-align: middle; }
+
+/* ── Column widths ────────────────────────────────────── */
+.col-code { width: 110px; }
+.col-grade { width: 90px; }
+.col-units { width: 70px; }
+.col-su { width: 50px; text-align: center; }
+.col-pts { width: 100px; text-align: right; }
+.col-del { width: 40px; }
+
+.col-su-cell { text-align: center; }
+.col-pts-cell { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
+
+/* ── Inputs ───────────────────────────────────────────── */
+input[type="text"],
+input[type="number"],
+input:not([type="checkbox"]):not([type="file"]),
+select {
+  border: 1px solid transparent;
+  border-radius: 5px;
+  padding: 5px 7px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: transparent;
+  color: var(--text);
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+input:not([type="checkbox"]):not([type="file"]):focus,
+select:focus {
+  outline: none;
+  border-color: var(--nus-orange);
+  background: #fff8f0;
+}
+
+.inp-code { font-family: 'Courier New', monospace; font-weight: 600; }
+.inp-name { min-width: 200px; }
+.inp-units { width: 60px; text-align: center; }
+.sel-grade { width: 70px; cursor: pointer; }
+
+.chk-su {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--nus-orange);
+  cursor: pointer;
+}
+
+/* ── Buttons ──────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: var(--nus-orange);
+  color: white;
+}
+.btn-primary:hover { background: var(--nus-orange-dark); }
+
+.btn-secondary {
+  background: white;
+  color: var(--text);
+  border: 1.5px solid var(--border);
+}
+.btn-secondary:hover { border-color: var(--nus-orange); color: var(--nus-orange); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1.5px solid transparent;
+}
+.btn-ghost:hover { background: #f0f0f0; color: var(--text); }
+
+.btn-add-row {
+  display: block;
+  width: 100%;
+  border-radius: 0;
+  border-top: 1px dashed var(--border);
+  padding: 10px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.btn-add-row:hover { background: #fafafa; color: var(--nus-orange); }
+
+.btn-del {
+  background: none;
+  border: none;
+  color: #ccc;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 7px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+.btn-del:hover { color: #c0392b; background: #fdf3f3; }
+
+/* ── Bottom Actions ───────────────────────────────────── */
+.bottom-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+/* ── Muted ────────────────────────────────────────────── */
+.muted { color: var(--text-muted); }
+
+/* ── Footer ───────────────────────────────────────────── */
+footer {
+  text-align: center;
+  padding: 24px 20px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Mobile ───────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .header-inner { flex-direction: column; align-items: flex-start; }
+  .cumulative-gpa { align-items: flex-start; }
+  .gpa-value { font-size: 1.8rem; }
+  .col-name { min-width: 140px; }
+}
