@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { parseTranscript } from './utils/parseTranscript';
 import { calculateGPA, GRADE_POINTS, isNonGraded } from './utils/gpa';
+import { useNUSMods } from './hooks/useNUSMods';
+import { CodeInput } from './components/CodeInput';
 import './App.css';
 
 const ALL_GRADES = [
@@ -11,6 +13,27 @@ const ALL_GRADES = [
   'F',
   'S', 'U', 'CS', 'CU', 'EXE', 'IC', 'IP', 'W', 'WU',
 ];
+
+// Generate AY options from 2018/2019 to 2029/2030
+const AY_OPTIONS = Array.from({ length: 12 }, (_, i) => {
+  const start = 2018 + i;
+  return `${start}/${start + 1}`;
+});
+const SEM_OPTIONS = ['Semester 1', 'Semester 2', 'Special Term I', 'Special Term II'];
+
+function semesterLabel(ay, sem) {
+  return `AY${ay} ${sem}`;
+}
+
+function semesterSortKey(sem) {
+  if (sem === 'Manual') return Infinity;
+  const m = sem.match(/AY(\d{4})\/\d{4} (.+)/);
+  if (!m) return Infinity;
+  const year = parseInt(m[1]);
+  const s = m[2];
+  const order = { 'Semester 1': 1, 'Semester 2': 2, 'Special Term I': 3, 'Special Term II': 4 };
+  return year * 10 + (order[s] ?? 9);
+}
 
 function newRow(semester = '') {
   return { id: crypto.randomUUID(), code: '', name: '', grade: 'A', units: 4, su: false, semester };
@@ -26,8 +49,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [addSemAY, setAddSemAY] = useState('2025/2026');
+  const [addSemType, setAddSemType] = useState('Semester 1');
   const fileInputRef = useRef(null);
   const fileInputRef2 = useRef(null);
+
+  const { modules, ready, fetchCredits } = useNUSMods();
 
   const handleFile = useCallback(async (file) => {
     if (!file || file.type !== 'application/pdf') {
@@ -64,12 +91,36 @@ export default function App() {
 
   const addRow = (semester = '') => setCourses(cs => [...cs, newRow(semester)]);
 
-  const reset = () => {
-    setCourses([]);
-    setError('');
-  };
+  // NUSMods: when a module is selected from autocomplete
+  async function handleModuleSelect(courseId, mod) {
+    update(courseId, 'name', mod.title);
+    // Fetch real credit count in background
+    const credits = await fetchCredits(mod.moduleCode);
+    if (credits !== null) update(courseId, 'units', credits);
+  }
 
-  const semesters = [...new Set(courses.map(c => c.semester || 'Manual'))];
+  // Semester management
+  const semesters = [...new Set(courses.map(c => c.semester || 'Manual'))]
+    .sort((a, b) => semesterSortKey(a) - semesterSortKey(b));
+
+  function addSemester() {
+    const label = semesterLabel(addSemAY, addSemType);
+    if (semesters.includes(label)) return; // already exists
+    setCourses(cs => [...cs, newRow(label)]);
+  }
+
+  function deleteSemester(sem) {
+    const count = courses.filter(c => (c.semester || 'Manual') === sem).length;
+    const msg = count > 0
+      ? `Delete "${sem}" and its ${count} course${count > 1 ? 's' : ''}?`
+      : `Delete semester "${sem}"?`;
+    if (window.confirm(msg)) {
+      setCourses(cs => cs.filter(c => (c.semester || 'Manual') !== sem));
+    }
+  }
+
+  const reset = () => { setCourses([]); setError(''); };
+
   const { gpa, totalUnits } = calculateGPA(courses);
 
   return (
@@ -117,9 +168,7 @@ export default function App() {
                 </>
               )}
             </div>
-
             {error && <p className="error">{error}</p>}
-
             <div className="divider"><span>or</span></div>
             <button className="btn btn-secondary" onClick={() => setCourses([newRow()])}>
               Add courses manually
@@ -141,11 +190,20 @@ export default function App() {
                 <section key={sem} className="semester-block">
                   <div className="semester-heading">
                     <h2>{sem}</h2>
-                    {semGpa !== null && (
-                      <span className="sem-gpa">
-                        Sem GPA&nbsp;<strong>{semGpa.toFixed(2)}</strong>
-                      </span>
-                    )}
+                    <div className="sem-heading-right">
+                      {semGpa !== null && (
+                        <span className="sem-gpa">
+                          Sem GPA&nbsp;<strong>{semGpa.toFixed(2)}</strong>
+                        </span>
+                      )}
+                      <button
+                        className="btn-delete-sem"
+                        onClick={() => deleteSemester(sem)}
+                        title={`Delete ${sem}`}
+                      >
+                        🗑
+                      </button>
+                    </div>
                   </div>
 
                   <div className="table-wrap">
@@ -166,12 +224,13 @@ export default function App() {
                           const pts = course.su ? null : (GRADE_POINTS[course.grade] ?? null);
                           return (
                             <tr key={course.id} className={course.su ? 'row-su' : ''}>
-                              <td>
-                                <input
+                              <td className="td-code">
+                                <CodeInput
                                   value={course.code}
-                                  onChange={e => update(course.id, 'code', e.target.value.toUpperCase())}
-                                  placeholder="CS1101S"
-                                  className="inp-code"
+                                  onChange={val => update(course.id, 'code', val)}
+                                  onSelect={mod => handleModuleSelect(course.id, mod)}
+                                  modules={modules}
+                                  ready={ready}
                                 />
                               </td>
                               <td>
@@ -215,13 +274,7 @@ export default function App() {
                                 {pts !== null ? pts.toFixed(1) : <span className="muted">—</span>}
                               </td>
                               <td>
-                                <button
-                                  className="btn-del"
-                                  onClick={() => remove(course.id)}
-                                  title="Remove"
-                                >
-                                  ✕
-                                </button>
+                                <button className="btn-del" onClick={() => remove(course.id)} title="Remove">✕</button>
                               </td>
                             </tr>
                           );
@@ -240,14 +293,20 @@ export default function App() {
               );
             })}
 
+            {/* Add Semester */}
+            <div className="add-sem-card">
+              <span className="add-sem-label">Add semester</span>
+              <select value={addSemAY} onChange={e => setAddSemAY(e.target.value)} className="sel-ay">
+                {AY_OPTIONS.map(ay => <option key={ay} value={ay}>AY{ay}</option>)}
+              </select>
+              <select value={addSemType} onChange={e => setAddSemType(e.target.value)} className="sel-semtype">
+                {SEM_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <button className="btn btn-primary" onClick={addSemester}>Add</button>
+            </div>
+
             <div className="bottom-actions">
-              <button className="btn btn-primary" onClick={() => addRow()}>
-                + Add course
-              </button>
-              <button
-                className="btn btn-secondary"
-                onClick={() => fileInputRef2.current?.click()}
-              >
+              <button className="btn btn-secondary" onClick={() => fileInputRef2.current?.click()}>
                 Re-upload transcript
               </button>
               <input
@@ -257,9 +316,7 @@ export default function App() {
                 hidden
                 onChange={(e) => handleFile(e.target.files[0])}
               />
-              <button className="btn btn-ghost" onClick={reset}>
-                Clear all
-              </button>
+              <button className="btn btn-ghost" onClick={reset}>Clear all</button>
             </div>
           </>
         )}

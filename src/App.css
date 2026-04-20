@@ -37,6 +37,9 @@ header {
   color: white;
   padding: 0 24px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .header-inner {
@@ -251,7 +254,7 @@ tbody tr.row-su { opacity: 0.55; }
 td { padding: 8px 12px; vertical-align: middle; }
 
 /* ── Column widths ────────────────────────────────────── */
-.col-code { width: 110px; }
+.col-code { width: 140px; }
 .col-grade { width: 90px; }
 .col-units { width: 70px; }
 .col-su { width: 50px; text-align: center; }
@@ -357,6 +360,115 @@ select:focus {
   font-family: inherit;
 }
 .btn-del:hover { color: #c0392b; background: #fdf3f3; }
+
+/* ── Semester heading right side ──────────────────────── */
+.sem-heading-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-delete-sem {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 3px 6px;
+  border-radius: 4px;
+  opacity: 0.4;
+  transition: opacity 0.15s, background 0.15s;
+  line-height: 1;
+}
+.btn-delete-sem:hover { opacity: 1; background: #fdf3f3; }
+
+/* ── Add Semester Card ────────────────────────────────── */
+.add-sem-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.add-sem-label {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sel-ay, .sel-semtype {
+  width: auto;
+  padding: 7px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+}
+
+.sel-ay:focus, .sel-semtype:focus {
+  border-color: var(--nus-orange);
+  background: #fff8f0;
+}
+
+/* ── CodeInput autocomplete ───────────────────────────── */
+.td-code { position: relative; }
+
+.code-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  list-style: none;
+  padding: 4px 0;
+  min-width: 300px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.suggestion-item:hover,
+.suggestion-item.highlighted {
+  background: #fff3e6;
+}
+
+.sug-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: var(--nus-orange);
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.sug-title {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* ── Bottom Actions ───────────────────────────────────── */
 .bottom-actions {
