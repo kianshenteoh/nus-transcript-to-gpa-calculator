@@ -48,8 +48,7 @@ function groupIntoRows(items) {
 }
 
 // Some PDFs split a course code at the letter/digit boundary (e.g. "CG" + "1111A").
-// Repeatedly merge adjacent items until the combined string forms a valid code.
-// Multiple passes handle 3-way splits like "C" + "G" + "1111A".
+// Repeatedly merge adjacent items until combined string forms a valid code.
 function mergeCodeFragments(rows) {
   for (const row of rows) {
     let changed = true;
@@ -71,32 +70,48 @@ function mergeCodeFragments(rows) {
   return rows;
 }
 
-// Find the column split x: largest gap between course-code x-positions
-function detectMid(items, fallback) {
+// Returns both the mid-point between columns AND the minimum x of right-column course codes.
+// rightStart is the true start of the right column and is used as the item split boundary.
+// Using rightStart (not mid) ensures left-column grade/units items — which may be between
+// mid and rightStart — stay in the left group.
+function detectColumns(items, fallback) {
   const xs = items
     .filter(i => COURSE_CODE_RE.test(i.str))
     .map(i => i.x)
     .sort((a, b) => a - b);
-  if (xs.length < 4) return fallback;
-  let maxGap = 0, mid = fallback;
+  if (xs.length < 4) return { mid: fallback, rightStart: Infinity };
+  let maxGap = 0, mid = fallback, rightStart = Infinity;
   for (let i = 1; i < xs.length; i++) {
     const gap = xs[i] - xs[i - 1];
     if (gap > maxGap && gap > 80) {
       maxGap = gap;
       mid = (xs[i] + xs[i - 1]) / 2;
+      rightStart = xs[i];
     }
   }
-  return mid;
+  return { mid, rightStart };
+}
+
+// Find the row item that "owns" the character at matchIndex in the space-joined string.
+// This correctly identifies which column a semester header belongs to even when two
+// headers from different columns share the same row.
+function anchorForMatch(items, matchIndex) {
+  let pos = 0;
+  for (const item of items) {
+    const end = pos + item.str.length;
+    if (matchIndex <= end) return item;
+    pos = end + 1; // +1 for the space used in join(' ')
+  }
+  return items[0];
 }
 
 // A course belongs to the nearest semester header that precedes it in reading order.
 // Reading order = page ascending, then y descending within a page (high y = top).
-// semHeaders is already in reading order (built from sorted rows).
 function assignSemester(codeX, rowPage, rowY, mid, semHeaders, lastSem) {
   const col = codeX >= mid ? 'right' : 'left';
   let result = '';
   for (const hdr of semHeaders) {
-    // Header comes at or after the course in reading order → stop
+    // Stop when we reach a header that comes at or after this course in reading order
     if (hdr.page > rowPage || (hdr.page === rowPage && hdr.y <= rowY)) break;
     if (col === 'right' && hdr.col === 'left') continue;
     result = hdr.label;
@@ -105,9 +120,8 @@ function assignSemester(codeX, rowPage, rowY, mid, semHeaders, lastSem) {
   return result;
 }
 
-// Parse course entries from all items in a row.
-// The course code's x-position determines semester assignment; grade/units follow the name.
-function parseCourseItems(items, rowPage, rowY, mid, semHeaders, lastSem, out) {
+// Core sequential parser: given a single column's items from one row, extract courses.
+function parseSingleColumn(items, rowPage, rowY, mid, semHeaders, lastSem, out) {
   let i = 0;
   while (i < items.length) {
     if (!COURSE_CODE_RE.test(items[i].str)) { i++; continue; }
@@ -134,8 +148,21 @@ function parseCourseItems(items, rowPage, rowY, mid, semHeaders, lastSem, out) {
   }
 }
 
+// Split a row's items at the right-column boundary before parsing.
+// This prevents right-column course codes (which sit between left-column grade and units
+// in x-sorted order) from breaking left-column course detection.
+function parseCourseItems(items, rowPage, rowY, mid, rightStart, semHeaders, lastSem, out) {
+  if (rightStart === Infinity) {
+    parseSingleColumn(items, rowPage, rowY, mid, semHeaders, lastSem, out);
+    return;
+  }
+  const leftItems  = items.filter(i => i.x < rightStart);
+  const rightItems = items.filter(i => i.x >= rightStart);
+  parseSingleColumn(leftItems,  rowPage, rowY, mid, semHeaders, lastSem, out);
+  parseSingleColumn(rightItems, rowPage, rowY, mid, semHeaders, lastSem, out);
+}
+
 // Detect programme names from "PROGRAMME:" label rows.
-// Stays within the left column (x < progLabel.x + 350) to avoid right-column GPA lines.
 function detectDegrees(rows) {
   const degrees = [];
   for (const row of rows) {
@@ -154,8 +181,6 @@ function detectDegrees(rows) {
   return degrees;
 }
 
-// Matches "SEMESTER 1/2" and any "SPECIAL TERM" variant broadly.
-// The Special Term part-number is extracted from the text that follows the match.
 const SEM_HEADER_RE = /ACADEMIC\s+YEAR\s+(\d{4}\/\d{4})\s+(SEMESTER\s+\d|SPECIAL\s+TERM)/g;
 const SEM_SKIP_RE   = /ACADEMIC\s+YEAR\s+\d{4}\/\d{4}\s+(SEMESTER\s+\d|SPECIAL\s+TERM)/;
 
@@ -163,21 +188,22 @@ export async function parseTranscript(file) {
   const items = await extractItems(file);
   const rows = mergeCodeFragments(groupIntoRows(items));
   const pageWidth = items[0]?.pageWidth ?? 595;
-  const mid = detectMid(items, pageWidth / 2);
+  const { mid, rightStart } = detectColumns(items, pageWidth / 2);
 
   const degrees = detectDegrees(rows);
 
-  // Pass 1: collect all semester headers with their reading position and column
+  // Pass 1: collect all semester headers with their reading position and column.
+  // anchorForMatch uses the character offset of each regex match in the joined string
+  // to correctly attribute a header to its column even when two headers share a row.
   const semHeaders = [];
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
     for (const m of joined.matchAll(SEM_HEADER_RE)) {
-      const anchor = row.items.find(i => i.str.includes('ACADEMIC') || i.str.includes('YEAR'));
+      const anchor = anchorForMatch(row.items, m.index);
       let label;
       if (m[2].toUpperCase().startsWith('SEMESTER')) {
         label = `AY${m[1]} Semester ${m[2].replace(/\D/g, '')}`;
       } else {
-        // Special Term — detect part II vs part I from the text that follows
         const rest = joined.slice(m.index + m[0].length);
         const n = /\b(II|2)\b/i.test(rest) ? 'II' : 'I';
         label = `AY${m[1]} Special Term ${n}`;
@@ -186,7 +212,7 @@ export async function parseTranscript(file) {
         label,
         y: row.y,
         page: row.page,
-        col: anchor && anchor.x >= mid ? 'right' : 'left',
+        col: anchor.x >= mid ? 'right' : 'left',
       });
     }
   }
@@ -197,7 +223,7 @@ export async function parseTranscript(file) {
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
     if (SEM_SKIP_RE.test(joined)) continue;
-    parseCourseItems(row.items, row.page, row.y, mid, semHeaders, lastSem, courses);
+    parseCourseItems(row.items, row.page, row.y, mid, rightStart, semHeaders, lastSem, courses);
   }
 
   // Deduplicate by (code, semester) — keeps repeated courses across different semesters

@@ -14,9 +14,9 @@ const ALL_GRADES = [
   'S', 'U', 'CS', 'CU', 'EXE', 'IC', 'IP', 'W', 'WU',
 ];
 
-// Generate AY options from 2018/2019 to 2029/2030
-const AY_OPTIONS = Array.from({ length: 12 }, (_, i) => {
-  const start = 2018 + i;
+const currentYear = new Date().getFullYear();
+const AY_OPTIONS = Array.from({ length: 21 }, (_, i) => {
+  const start = currentYear - 10 + i;
   return `${start}/${start + 1}`;
 });
 const SEM_OPTIONS = ['Semester 1', 'Semester 2', 'Special Term I', 'Special Term II'];
@@ -405,6 +405,7 @@ export default function App() {
           A+/A = 5.0 · A- = 4.5 · B+ = 4.0 · B = 3.5 · B- = 3.0 · C+ = 2.5 · C = 2.0 · D+ = 1.5 · D = 1.0 · F = 0.0
         </p>
         <p>S/U-opted and non-graded courses are excluded from GPA computation.</p>
+        <p>Transcript parsing is not perfect. Do check for mistakes and adjust your courses when necessary.</p>
       </footer>
     </div>
   );
