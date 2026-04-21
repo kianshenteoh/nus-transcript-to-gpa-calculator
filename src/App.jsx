@@ -128,7 +128,7 @@ export default function App() {
       <header>
         <div className="header-inner">
           <div className="header-title">
-            <h1>NUS GPA Calculator</h1>
+            <h1>NUS Transcript to GPA Calculator</h1>
           </div>
           <div className="cumulative-gpa">
             <div className="gpa-label">Cumulative GPA</div>
@@ -141,6 +141,10 @@ export default function App() {
       <main>
         {courses.length === 0 ? (
           <div className="upload-section">
+            <ol className="upload-instructions">
+              <li>Go to <strong>EduRec</strong> &gt; <strong>Academics</strong> &gt; <strong>Transcripts</strong> &gt; <strong>View Unofficial Transcript</strong> &gt; <strong>Undergraduate Unofficial</strong> &gt; <strong>Submit</strong></li>
+              <li>Upload your unofficial transcript below</li>
+            </ol>
             <div
               className={`upload-zone ${dragging ? 'dragging' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}

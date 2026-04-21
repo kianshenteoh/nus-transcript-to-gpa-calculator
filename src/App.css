@@ -96,6 +96,23 @@ header {
   padding: 40px 0;
 }
 
+.upload-instructions {
+  width: 100%;
+  max-width: 520px;
+  background: #fff8f0;
+  border: 1px solid #f5d9b8;
+  border-radius: var(--radius);
+  padding: 14px 20px 14px 36px;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+
+.upload-instructions li::marker {
+  color: var(--nus-orange);
+  font-weight: 600;
+}
+
 .upload-zone {
   width: 100%;
   max-width: 520px;
@@ -424,17 +441,13 @@ select:focus {
 }
 
 .suggestions {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  z-index: 200;
+  /* position/top/left/min-width/z-index set via inline style (portal) */
   background: white;
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14);
   list-style: none;
   padding: 4px 0;
-  min-width: 300px;
   max-height: 260px;
   overflow-y: auto;
 }

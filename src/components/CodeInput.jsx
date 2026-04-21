@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 
 export function CodeInput({ value, onChange, onSelect, modules, ready }) {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [highlighted, setHighlighted] = useState(0);
-  const wrapRef = useRef(null);
+  const [dropdownStyle, setDropdownStyle] = useState({});
+  const inputRef = useRef(null);
   const listRef = useRef(null);
 
   const getSuggestions = useCallback((q) => {
@@ -12,21 +14,38 @@ export function CodeInput({ value, onChange, onSelect, modules, ready }) {
     const upper = q.toUpperCase();
     return modules
       .filter(m => m.moduleCode.startsWith(upper))
-      .slice(0, 8);
   }, [modules]);
+
+  function positionDropdown() {
+    if (!inputRef.current) return;
+    const rect = inputRef.current.getBoundingClientRect();
+    setDropdownStyle({
+      position: 'fixed',
+      top: rect.bottom + 4,
+      left: rect.left,
+      minWidth: Math.max(rect.width, 340),
+      zIndex: 9999,
+    });
+  }
+
+  function openWith(sugs) {
+    positionDropdown();
+    setSuggestions(sugs);
+    setHighlighted(0);
+    setOpen(true);
+  }
 
   function handleChange(e) {
     const q = e.target.value.toUpperCase();
     onChange(q);
     const sugs = getSuggestions(q);
-    setSuggestions(sugs);
-    setHighlighted(0);
-    setOpen(sugs.length > 0);
+    if (sugs.length > 0) openWith(sugs);
+    else setOpen(false);
   }
 
   function handleFocus() {
     const sugs = getSuggestions(value);
-    if (sugs.length > 0) { setSuggestions(sugs); setOpen(true); }
+    if (sugs.length > 0) openWith(sugs);
   }
 
   function handleKeyDown(e) {
@@ -55,34 +74,32 @@ export function CodeInput({ value, onChange, onSelect, modules, ready }) {
   // Scroll highlighted item into view
   useEffect(() => {
     if (listRef.current) {
-      const el = listRef.current.children[highlighted];
-      el?.scrollIntoView({ block: 'nearest' });
+      listRef.current.children[highlighted]?.scrollIntoView({ block: 'nearest' });
     }
   }, [highlighted]);
 
-  // Close on outside click
+  // Close on outside click; reposition on scroll/resize
   useEffect(() => {
-    function onClick(e) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
+    function onOutside(e) {
+      if (inputRef.current && !inputRef.current.closest('.code-input-wrap')?.contains(e.target) &&
+          listRef.current && !listRef.current.contains(e.target)) {
+        setOpen(false);
+      }
     }
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, []);
+    function onScroll() { if (open) positionDropdown(); }
+    document.addEventListener('mousedown', onOutside);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll);
+    return () => {
+      document.removeEventListener('mousedown', onOutside);
+      window.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [open]);
 
-  return (
-    <div className="code-input-wrap" ref={wrapRef}>
-      <input
-        value={value}
-        onChange={handleChange}
-        onFocus={handleFocus}
-        onKeyDown={handleKeyDown}
-        placeholder={ready ? 'e.g. CS1101S' : '…'}
-        className="inp-code"
-        autoComplete="off"
-        spellCheck={false}
-      />
-      {open && suggestions.length > 0 && (
-        <ul className="suggestions" ref={listRef}>
+  const dropdown = open && suggestions.length > 0
+    ? createPortal(
+        <ul className="suggestions" ref={listRef} style={dropdownStyle}>
           {suggestions.map((mod, idx) => (
             <li
               key={mod.moduleCode}
@@ -94,8 +111,24 @@ export function CodeInput({ value, onChange, onSelect, modules, ready }) {
               <span className="sug-title">{mod.title}</span>
             </li>
           ))}
-        </ul>
-      )}
+        </ul>,
+        document.body
+      )
+    : null;
+
+  return (
+    <div className="code-input-wrap" ref={inputRef}>
+      <input
+        value={value}
+        onChange={handleChange}
+        onFocus={handleFocus}
+        onKeyDown={handleKeyDown}
+        placeholder={ready ? 'e.g. CS1101S' : '…'}
+        className="inp-code"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      {dropdown}
     </div>
   );
 }
