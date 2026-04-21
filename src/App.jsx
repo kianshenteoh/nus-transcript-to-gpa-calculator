@@ -36,7 +36,23 @@ function semesterSortKey(sem) {
 }
 
 function newRow(semester = '') {
-  return { id: crypto.randomUUID(), code: '', name: '', grade: 'A', units: 4, su: false, semester };
+  return { id: crypto.randomUUID(), code: '', name: '', grade: 'A', units: 4, su: false, semester, degree: '' };
+}
+
+function shortDegreeName(name) {
+  const n = name.toUpperCase();
+  if (n.includes('COMPUTING') && n.includes('COMPUTER SCIENCE')) return 'BComp (CS)';
+  if (n.includes('COMPUTING') && n.includes('INFORMATION SECURITY')) return 'BComp (IS)';
+  if (n.includes('COMPUTING') && n.includes('COMPUTER ENGINEERING')) return 'BComp (CE)';
+  if (n.includes('COMPUTING')) return 'BComp';
+  if (n.includes('BUSINESS ADMINISTRATION')) return 'BBA';
+  if (n.includes('ACCOUNTANCY')) return 'BAcc';
+  if (n.includes('SOCIAL SCIENCES')) return 'BSocSci';
+  if (n.includes('ENGINEERING')) return 'BEng';
+  if (n.includes('SCIENCE')) return 'BSc';
+  if (n.includes('ARTS')) return 'BA';
+  if (n.includes('LAW')) return 'LLB';
+  return name;
 }
 
 function GpaBadge({ gpa }) {
@@ -46,6 +62,7 @@ function GpaBadge({ gpa }) {
 
 export default function App() {
   const [courses, setCourses] = useState([]);
+  const [degrees, setDegrees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -64,14 +81,16 @@ export default function App() {
     setError('');
     setLoading(true);
     try {
-      const parsed = await parseTranscript(file);
+      const { courses: parsed, degrees: parsedDegrees } = await parseTranscript(file);
       if (parsed.length === 0) {
         setError('No courses found. Ensure the PDF is an NUS transcript, or add courses manually.');
       }
-      setCourses(parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: isNonGraded(c.grade) })));
+      setDegrees(parsedDegrees);
+      setCourses(parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: isNonGraded(c.grade), degree: '' })));
     } catch (e) {
       console.error(e);
       setError('Failed to parse transcript. You can add courses manually.');
+      setDegrees([]);
       setCourses([newRow()]);
     } finally {
       setLoading(false);
@@ -119,7 +138,9 @@ export default function App() {
     }
   }
 
-  const reset = () => { setCourses([]); setError(''); };
+  const reset = () => { setCourses([]); setDegrees([]); setError(''); };
+  const isDoubleDegree = degrees.length >= 2;
+  const effectiveDegree = (course) => course.degree || degrees[0] || '';
 
   const { gpa, totalUnits } = calculateGPA(courses);
 
@@ -130,11 +151,28 @@ export default function App() {
           <div className="header-title">
             <h1>NUS Transcript to GPA Calculator</h1>
           </div>
-          <div className="cumulative-gpa">
-            <div className="gpa-label">Cumulative GPA</div>
-            <GpaBadge gpa={gpa} />
-            <div className="gpa-units">{totalUnits} graded MCs</div>
-          </div>
+          {isDoubleDegree ? (
+            <div className="header-degree-gpas">
+              {degrees.map(deg => {
+                const { gpa: degGpa, totalUnits: degUnits } = calculateGPA(
+                  courses.filter(c => effectiveDegree(c) === deg)
+                );
+                return (
+                  <div key={deg} className="header-degree-gpa">
+                    <div className="gpa-label">{shortDegreeName(deg)}</div>
+                    <GpaBadge gpa={degGpa} />
+                    <div className="gpa-units">{degUnits} graded MCs</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="cumulative-gpa">
+              <div className="gpa-label">Cumulative GPA</div>
+              <GpaBadge gpa={gpa} />
+              <div className="gpa-units">{totalUnits} graded MCs</div>
+            </div>
+          )}
         </div>
       </header>
 
@@ -219,6 +257,7 @@ export default function App() {
                           <th className="col-grade">Grade</th>
                           <th className="col-units">MCs</th>
                           <th className="col-su">S/U</th>
+                          {isDoubleDegree && <th className="col-degree">Degree</th>}
                           <th className="col-pts">Grade Points</th>
                           <th className="col-del" />
                         </tr>
@@ -274,6 +313,19 @@ export default function App() {
                                   className="chk-su"
                                 />
                               </td>
+                              {isDoubleDegree && (
+                                <td>
+                                  <select
+                                    value={effectiveDegree(course)}
+                                    onChange={e => update(course.id, 'degree', e.target.value)}
+                                    className="sel-degree"
+                                  >
+                                    {degrees.map(d => (
+                                      <option key={d} value={d}>{shortDegreeName(d)}</option>
+                                    ))}
+                                  </select>
+                                </td>
+                              )}
                               <td className="col-pts-cell">
                                 {pts !== null ? pts.toFixed(1) : <span className="muted">—</span>}
                               </td>

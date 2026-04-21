@@ -47,6 +47,30 @@ function groupIntoRows(items) {
   return rows;
 }
 
+// Some PDFs split a course code at the letter/digit boundary (e.g. "CG" + "1111A").
+// Repeatedly merge adjacent items until the combined string forms a valid code.
+// Multiple passes handle 3-way splits like "C" + "G" + "1111A".
+function mergeCodeFragments(rows) {
+  for (const row of rows) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const items = row.items;
+      for (let i = 0; i < items.length - 1; i++) {
+        const a = items[i].str;
+        const b = items[i + 1].str;
+        if (/^[A-Z]{1,4}$/.test(a) && COURSE_CODE_RE.test(a + b)) {
+          items[i] = { ...items[i], str: a + b };
+          items.splice(i + 1, 1);
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+  return rows;
+}
+
 // Find the column split x: largest gap between course-code x-positions
 function detectMid(items, fallback) {
   const xs = items
@@ -63,6 +87,19 @@ function detectMid(items, fallback) {
     }
   }
   return mid;
+}
+
+// Normalise a matched semester string into the label format used by the app.
+// Handles "SEMESTER 1", "SEMESTER 2", "SPECIAL TERM I", "SPECIAL TERM II",
+// and numeric variants ("SPECIAL TERM 1", "SPECIAL TERM 2").
+function normalizeSemLabel(ay, term) {
+  const t = term.trim().toUpperCase();
+  if (t.startsWith('SEMESTER')) {
+    return `AY${ay} Semester ${t.replace(/\D/g, '')}`;
+  }
+  // Special Term — accept Roman (I/II) or Arabic (1/2)
+  const isSecond = /\bII\b|\b2\b/.test(t);
+  return `AY${ay} Special Term ${isSecond ? 'II' : 'I'}`;
 }
 
 // Given a course code's x/y and a sorted list of semester headers,
@@ -111,20 +148,50 @@ function parseCourseItems(items, rowY, mid, semHeaders, lastSem, out) {
   }
 }
 
+// Detect programme names from "PROGRAMME:" label rows.
+// Only picks up items in the left column (x < progLabel.x + 350) to avoid
+// the GPA-summary lines in the right column that also mention degree names.
+function detectDegrees(rows) {
+  const degrees = [];
+  for (const row of rows) {
+    const progLabel = row.items.find(i => i.str.trim() === 'PROGRAMME:');
+    if (!progLabel) continue;
+    const nameItem = row.items.find(i =>
+      i.x > progLabel.x &&
+      i.x < progLabel.x + 350 &&
+      (i.str.includes('BACHELOR') || i.str.includes('MASTER') ||
+       i.str.includes('DOCTOR') || i.str.includes('JURIS'))
+    );
+    if (nameItem && !degrees.includes(nameItem.str.trim())) {
+      degrees.push(nameItem.str.trim());
+    }
+  }
+  return degrees;
+}
+
+// Matches "SEMESTER 1", "SEMESTER 2", "SPECIAL TERM I", "SPECIAL TERM II",
+// and numeric variants used on some transcript layouts.
+const SEM_HEADER_RE =
+  /ACADEMIC\s+YEAR\s+(\d{4}\/\d{4})\s+(SEMESTER\s+\d|SPECIAL\s+TERM\s+(?:I{1,2}|\d+))/g;
+const SEM_SKIP_RE =
+  /ACADEMIC\s+YEAR\s+\d{4}\/\d{4}\s+(SEMESTER\s+\d|SPECIAL\s+TERM)/;
+
 export async function parseTranscript(file) {
   const items = await extractItems(file);
-  const rows = groupIntoRows(items);
+  const rows = mergeCodeFragments(groupIntoRows(items));
   const pageWidth = items[0]?.pageWidth ?? 595;
   const mid = detectMid(items, pageWidth / 2);
+
+  const degrees = detectDegrees(rows);
 
   // Pass 1: collect all semester headers with their position + column
   const semHeaders = [];
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
-    for (const m of joined.matchAll(/ACADEMIC\s+YEAR\s+(\d{4}\/\d{4})\s+SEMESTER\s+(\d)/g)) {
+    for (const m of joined.matchAll(SEM_HEADER_RE)) {
       const anchor = row.items.find(i => i.str.includes('ACADEMIC') || i.str.includes('YEAR'));
       semHeaders.push({
-        label: `AY${m[1]} Semester ${m[2]}`,
+        label: normalizeSemLabel(m[1], m[2]),
         y: row.y,
         col: anchor && anchor.x >= mid ? 'right' : 'left',
       });
@@ -134,19 +201,20 @@ export async function parseTranscript(file) {
   const lastSem = semHeaders.at(-1)?.label ?? '';
 
   // Pass 2: parse courses, skip semester-header rows
-  const semRe = /ACADEMIC\s+YEAR\s+\d{4}\/\d{4}\s+SEMESTER\s+\d/;
   const courses = [];
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
-    if (semRe.test(joined)) continue;
+    if (SEM_SKIP_RE.test(joined)) continue;
     parseCourseItems(row.items, row.y, mid, semHeaders, lastSem, courses);
   }
 
   // Deduplicate by course code
   const seen = new Set();
-  return courses.filter(c => {
+  const deduped = courses.filter(c => {
     if (seen.has(c.code)) return false;
     seen.add(c.code);
     return true;
   });
+
+  return { courses: deduped, degrees };
 }
