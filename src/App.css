@@ -281,6 +281,31 @@ td { padding: 8px 12px; vertical-align: middle; }
 .col-su-cell { text-align: center; }
 .col-pts-cell { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
 
+/* ── Drag & Drop ──────────────────────────────────────── */
+.col-drag { width: 20px; padding: 0 4px !important; }
+
+.drag-handle {
+  display: block;
+  text-align: center;
+  color: #ddd;
+  font-size: 0.95rem;
+  cursor: grab;
+  user-select: none;
+  line-height: 1;
+}
+
+tbody tr:hover .drag-handle { color: #bbb; }
+tbody tr[draggable]:active { cursor: grabbing; }
+
+.semester-block.drop-target {
+  outline: 2px dashed var(--nus-orange);
+  outline-offset: -2px;
+}
+
+.semester-block.drop-target .semester-heading {
+  background: #fff3e6;
+}
+
 /* ── Inputs ───────────────────────────────────────────── */
 input[type="text"],
 input[type="number"],

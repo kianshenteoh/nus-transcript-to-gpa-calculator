@@ -66,6 +66,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
+  const [dropTarget, setDropTarget] = useState(null);
   const [addSemAY, setAddSemAY] = useState('2025/2026');
   const [addSemType, setAddSemType] = useState('Semester 1');
   const fileInputRef = useRef(null);
@@ -229,7 +230,17 @@ export default function App() {
               const semCourses = courses.filter(c => (c.semester || 'Manual') === sem);
               const { gpa: semGpa } = calculateGPA(semCourses);
               return (
-                <section key={sem} className="semester-block">
+                <section
+                  key={sem}
+                  className={`semester-block${dropTarget === sem ? ' drop-target' : ''}`}
+                  onDragOver={e => { e.preventDefault(); setDropTarget(sem); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    setDropTarget(null);
+                    const id = e.dataTransfer.getData('text/plain');
+                    if (id) update(id, 'semester', sem === 'Manual' ? '' : sem);
+                  }}
+                >
                   <div className="semester-heading">
                     <h2>{sem}</h2>
                     <div className="sem-heading-right">
@@ -252,6 +263,7 @@ export default function App() {
                     <table>
                       <thead>
                         <tr>
+                          <th className="col-drag" />
                           <th className="col-code">Code</th>
                           <th className="col-name">Course</th>
                           <th className="col-grade">Grade</th>
@@ -266,7 +278,17 @@ export default function App() {
                         {semCourses.map(course => {
                           const pts = course.su ? null : (GRADE_POINTS[course.grade] ?? null);
                           return (
-                            <tr key={course.id} className={course.su ? 'row-su' : ''}>
+                            <tr
+                              key={course.id}
+                              draggable
+                              onDragStart={e => {
+                                e.dataTransfer.setData('text/plain', course.id);
+                                e.dataTransfer.effectAllowed = 'move';
+                              }}
+                              onDragEnd={() => setDropTarget(null)}
+                              className={course.su ? 'row-su' : ''}
+                            >
+                              <td className="col-drag"><span className="drag-handle">⠿</span></td>
                               <td className="td-code">
                                 <CodeInput
                                   value={course.code}

@@ -41,7 +41,7 @@ function groupIntoRows(items) {
       rows.push({ page: item.page, y: item.y, items: [item] });
     }
   }
-  // Sort top→bottom (high y = top of page in PDF coords)
+  // Sort top→bottom across pages (high y = top of page in PDF coords)
   rows.sort((a, b) => a.page - b.page || b.y - a.y);
   rows.forEach(r => r.items.sort((a, b) => a.x - b.x));
   return rows;
@@ -89,39 +89,25 @@ function detectMid(items, fallback) {
   return mid;
 }
 
-// Normalise a matched semester string into the label format used by the app.
-// Handles "SEMESTER 1", "SEMESTER 2", "SPECIAL TERM I", "SPECIAL TERM II",
-// and numeric variants ("SPECIAL TERM 1", "SPECIAL TERM 2").
-function normalizeSemLabel(ay, term) {
-  const t = term.trim().toUpperCase();
-  if (t.startsWith('SEMESTER')) {
-    return `AY${ay} Semester ${t.replace(/\D/g, '')}`;
-  }
-  // Special Term — accept Roman (I/II) or Arabic (1/2)
-  const isSecond = /\bII\b|\b2\b/.test(t);
-  return `AY${ay} Special Term ${isSecond ? 'II' : 'I'}`;
-}
-
-// Given a course code's x/y and a sorted list of semester headers,
-// return the most appropriate semester label.
-// Right-column courses with no preceding right-column header fall back to lastSem
-// (the overflow section always belongs to the last/current semester).
-function assignSemester(codeX, rowY, mid, semHeaders, lastSem) {
+// A course belongs to the nearest semester header that precedes it in reading order.
+// Reading order = page ascending, then y descending within a page (high y = top).
+// semHeaders is already in reading order (built from sorted rows).
+function assignSemester(codeX, rowPage, rowY, mid, semHeaders, lastSem) {
   const col = codeX >= mid ? 'right' : 'left';
   let result = '';
   for (const hdr of semHeaders) {
-    if (hdr.y <= rowY) break;          // header is at or below course row
-    if (col === 'right' && hdr.col === 'left') continue; // right-col courses skip left-col headers
+    // Header comes at or after the course in reading order → stop
+    if (hdr.page > rowPage || (hdr.page === rowPage && hdr.y <= rowY)) break;
+    if (col === 'right' && hdr.col === 'left') continue;
     result = hdr.label;
   }
   if (!result && col === 'right') return lastSem;
   return result;
 }
 
-// Parse course entries from all items in a row (no column splitting —
-// splitting broke because grade/units of left-column courses sit at x > mid).
-// The course code's x-position is used only to determine semester assignment.
-function parseCourseItems(items, rowY, mid, semHeaders, lastSem, out) {
+// Parse course entries from all items in a row.
+// The course code's x-position determines semester assignment; grade/units follow the name.
+function parseCourseItems(items, rowPage, rowY, mid, semHeaders, lastSem, out) {
   let i = 0;
   while (i < items.length) {
     if (!COURSE_CODE_RE.test(items[i].str)) { i++; continue; }
@@ -143,14 +129,13 @@ function parseCourseItems(items, rowY, mid, semHeaders, lastSem, out) {
     if (i >= items.length || !UNITS_RE.test(items[i].str)) continue;
     const units = parseFloat(items[i++].str);
 
-    const semester = assignSemester(codeItem.x, rowY, mid, semHeaders, lastSem);
+    const semester = assignSemester(codeItem.x, rowPage, rowY, mid, semHeaders, lastSem);
     out.push({ code, name: nameParts.join(' '), grade, units, semester });
   }
 }
 
 // Detect programme names from "PROGRAMME:" label rows.
-// Only picks up items in the left column (x < progLabel.x + 350) to avoid
-// the GPA-summary lines in the right column that also mention degree names.
+// Stays within the left column (x < progLabel.x + 350) to avoid right-column GPA lines.
 function detectDegrees(rows) {
   const degrees = [];
   for (const row of rows) {
@@ -169,12 +154,10 @@ function detectDegrees(rows) {
   return degrees;
 }
 
-// Matches "SEMESTER 1", "SEMESTER 2", "SPECIAL TERM I", "SPECIAL TERM II",
-// and numeric variants used on some transcript layouts.
-const SEM_HEADER_RE =
-  /ACADEMIC\s+YEAR\s+(\d{4}\/\d{4})\s+(SEMESTER\s+\d|SPECIAL\s+TERM\s+(?:I{1,2}|\d+))/g;
-const SEM_SKIP_RE =
-  /ACADEMIC\s+YEAR\s+\d{4}\/\d{4}\s+(SEMESTER\s+\d|SPECIAL\s+TERM)/;
+// Matches "SEMESTER 1/2" and any "SPECIAL TERM" variant broadly.
+// The Special Term part-number is extracted from the text that follows the match.
+const SEM_HEADER_RE = /ACADEMIC\s+YEAR\s+(\d{4}\/\d{4})\s+(SEMESTER\s+\d|SPECIAL\s+TERM)/g;
+const SEM_SKIP_RE   = /ACADEMIC\s+YEAR\s+\d{4}\/\d{4}\s+(SEMESTER\s+\d|SPECIAL\s+TERM)/;
 
 export async function parseTranscript(file) {
   const items = await extractItems(file);
@@ -184,20 +167,29 @@ export async function parseTranscript(file) {
 
   const degrees = detectDegrees(rows);
 
-  // Pass 1: collect all semester headers with their position + column
+  // Pass 1: collect all semester headers with their reading position and column
   const semHeaders = [];
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
     for (const m of joined.matchAll(SEM_HEADER_RE)) {
       const anchor = row.items.find(i => i.str.includes('ACADEMIC') || i.str.includes('YEAR'));
+      let label;
+      if (m[2].toUpperCase().startsWith('SEMESTER')) {
+        label = `AY${m[1]} Semester ${m[2].replace(/\D/g, '')}`;
+      } else {
+        // Special Term — detect part II vs part I from the text that follows
+        const rest = joined.slice(m.index + m[0].length);
+        const n = /\b(II|2)\b/i.test(rest) ? 'II' : 'I';
+        label = `AY${m[1]} Special Term ${n}`;
+      }
       semHeaders.push({
-        label: normalizeSemLabel(m[1], m[2]),
+        label,
         y: row.y,
+        page: row.page,
         col: anchor && anchor.x >= mid ? 'right' : 'left',
       });
     }
   }
-  // semHeaders is already top→bottom order (rows sorted high y first)
   const lastSem = semHeaders.at(-1)?.label ?? '';
 
   // Pass 2: parse courses, skip semester-header rows
@@ -205,14 +197,16 @@ export async function parseTranscript(file) {
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
     if (SEM_SKIP_RE.test(joined)) continue;
-    parseCourseItems(row.items, row.y, mid, semHeaders, lastSem, courses);
+    parseCourseItems(row.items, row.page, row.y, mid, semHeaders, lastSem, courses);
   }
 
-  // Deduplicate by course code
+  // Deduplicate by (code, semester) — keeps repeated courses across different semesters
+  // (e.g. a project module spanning two semesters) while dropping parser duplicates.
   const seen = new Set();
   const deduped = courses.filter(c => {
-    if (seen.has(c.code)) return false;
-    seen.add(c.code);
+    const key = `${c.code}|${c.semester}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
     return true;
   });
 
