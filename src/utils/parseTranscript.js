@@ -116,8 +116,19 @@ function assignSemester(codeX, rowPage, rowY, mid, semHeaders, lastSem) {
     if (hdr.col !== col) continue;
     result = hdr.label;
   }
-  if (!result && col === 'right') return lastSem;
-  return result;
+  // Column-break layout: the semester header sits at the bottom of the left column
+  // while its courses appear at the top of the right column, so no right-column header
+  // precedes those courses. Fall back to the bottommost left-column header on this page.
+  if (!result && col === 'right') {
+    let lowestY = Infinity;
+    for (const hdr of semHeaders) {
+      if (hdr.page === rowPage && hdr.col === 'left' && hdr.y < lowestY) {
+        lowestY = hdr.y;
+        result = hdr.label;
+      }
+    }
+  }
+  return result || lastSem;
 }
 
 // Core sequential parser: given a single column's items from one row, extract courses.
@@ -218,12 +229,23 @@ export async function parseTranscript(file) {
   }
   const lastSem = semHeaders.at(-1)?.label ?? '';
 
-  // Pass 2: parse courses, skip semester-header rows
+  // Pass 2: parse courses, skip semester-header rows.
+  // In two-column layout a semester header (left col) and a course (right col) can share
+  // the same y — split such rows by column so only the header side is skipped.
   const courses = [];
   for (const row of rows) {
     const joined = row.items.map(i => i.str).join(' ');
-    if (SEM_SKIP_RE.test(joined)) continue;
-    parseCourseItems(row.items, row.page, row.y, mid, rightStart, semHeaders, lastSem, courses);
+    if (!SEM_SKIP_RE.test(joined)) {
+      parseCourseItems(row.items, row.page, row.y, mid, rightStart, semHeaders, lastSem, courses);
+      continue;
+    }
+    if (rightStart === Infinity) continue; // single-column: skip whole row
+    const leftItems  = row.items.filter(i => i.x < rightStart);
+    const rightItems = row.items.filter(i => i.x >= rightStart);
+    if (!SEM_SKIP_RE.test(leftItems.map(i => i.str).join(' ')))
+      parseSingleColumn(leftItems,  row.page, row.y, mid, semHeaders, lastSem, courses);
+    if (!SEM_SKIP_RE.test(rightItems.map(i => i.str).join(' ')))
+      parseSingleColumn(rightItems, row.page, row.y, mid, semHeaders, lastSem, courses);
   }
 
   // Deduplicate by (code, semester) — keeps repeated courses across different semesters
