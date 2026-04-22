@@ -113,7 +113,7 @@ function assignSemester(codeX, rowPage, rowY, mid, semHeaders, lastSem) {
   for (const hdr of semHeaders) {
     // Stop when we reach a header that comes at or after this course in reading order
     if (hdr.page > rowPage || (hdr.page === rowPage && hdr.y <= rowY)) break;
-    if (col === 'right' && hdr.col === 'left') continue;
+    if (hdr.col !== col) continue;
     result = hdr.label;
   }
   if (!result && col === 'right') return lastSem;
