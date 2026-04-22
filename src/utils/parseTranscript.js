@@ -3,7 +3,7 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
-const COURSE_CODE_RE = /^[A-Z]{1,4}\d{4}[A-Z]?$/;
+const COURSE_CODE_RE = /^[A-Z]{1,4}\d{4}[A-Z]{0,2}$/;
 const GRADE_RE = /^(A\+|A-|A|B\+|B-|B|C\+|C-|C|D\+|D|F|S|U|CS|CU|EXE|IC|IP|W|WU)$/;
 const UNITS_RE = /^\d+\.\d{2}$/;
 
