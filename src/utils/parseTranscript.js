@@ -242,10 +242,10 @@ export async function parseTranscript(file) {
     if (rightStart === Infinity) continue; // single-column: skip whole row
     const leftItems  = row.items.filter(i => i.x < rightStart);
     const rightItems = row.items.filter(i => i.x >= rightStart);
-    if (!SEM_SKIP_RE.test(leftItems.map(i => i.str).join(' ')))
-      parseSingleColumn(leftItems,  row.page, row.y, mid, semHeaders, lastSem, courses);
-    if (!SEM_SKIP_RE.test(rightItems.map(i => i.str).join(' ')))
-      parseSingleColumn(rightItems, row.page, row.y, mid, semHeaders, lastSem, courses);
+    // No SEM_SKIP_RE guard here — parseSingleColumn skips non-course words naturally,
+    // so semester header text on either side is harmlessly ignored.
+    parseSingleColumn(leftItems,  row.page, row.y, mid, semHeaders, lastSem, courses);
+    parseSingleColumn(rightItems, row.page, row.y, mid, semHeaders, lastSem, courses);
   }
 
   // Deduplicate by (code, semester) — keeps repeated courses across different semesters

@@ -55,9 +55,15 @@ function shortDegreeName(name) {
   return name;
 }
 
+// Round to 3dp first to correct floating-point imprecision (e.g. 4.425 stored as 4.4249999…),
+// then display at 2dp with standard half-up rounding.
+function fmtGPA(gpa) {
+  return (Math.round(Math.round(gpa * 1000) / 10) / 100).toFixed(2);
+}
+
 function GpaBadge({ gpa }) {
   if (gpa === null) return <span className="gpa-value muted">—</span>;
-  return <span className="gpa-value">{gpa.toFixed(2)}</span>;
+  return <span className="gpa-value">{fmtGPA(gpa)}</span>;
 }
 
 export default function App() {
@@ -293,7 +299,7 @@ export default function App() {
                     <div className="sem-heading-right">
                       {semGpa !== null && (
                         <span className="sem-gpa">
-                          Sem GPA&nbsp;<strong>{semGpa.toFixed(2)}</strong>
+                          Sem GPA&nbsp;<strong>{fmtGPA(semGpa)}</strong>
                         </span>
                       )}
                       <button
