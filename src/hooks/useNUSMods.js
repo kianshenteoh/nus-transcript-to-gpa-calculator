@@ -58,5 +58,34 @@ export function useNUSMods() {
     return null;
   }
 
-  return { modules, ready, fetchCredits };
+  // Parse a NUSMods share URL and return [{code, name, units}] for each module.
+  // URL format: https://nusmods.com/timetable/sem-1/share?CS2040=LEC:1,TUT:2&MA1521=...
+  async function importFromNUSMods(url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error('Invalid URL');
+    }
+    if (!parsed.hostname.includes('nusmods.com')) {
+      throw new Error('Not a NUSMods URL');
+    }
+
+    const codes = [...parsed.searchParams.keys()];
+    if (codes.length === 0) throw new Error('No modules found in URL');
+
+    // Fetch module list to get titles (already cached from loadModules)
+    const list = await loadModules();
+    const titleMap = Object.fromEntries(list.map(m => [m.moduleCode, m.title]));
+
+    const results = await Promise.all(
+      codes.map(async (code) => {
+        const credits = await fetchCredits(code);
+        return { code, name: titleMap[code] ?? '', units: credits ?? 4 };
+      })
+    );
+    return results;
+  }
+
+  return { modules, ready, fetchCredits, importFromNUSMods };
 }

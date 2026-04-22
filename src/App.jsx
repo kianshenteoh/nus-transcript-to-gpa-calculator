@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { parseTranscript } from './utils/parseTranscript';
-import { calculateGPA, GRADE_POINTS, isNonGraded } from './utils/gpa';
+import { calculateGPA, GRADE_POINTS } from './utils/gpa';
 import { useNUSMods } from './hooks/useNUSMods';
 import { CodeInput } from './components/CodeInput';
 import './App.css';
@@ -66,13 +66,16 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
+  // dropTarget: null | { sem } for semester-level | { id, above: bool } for row-level
   const [dropTarget, setDropTarget] = useState(null);
   const [addSemAY, setAddSemAY] = useState('2025/2026');
   const [addSemType, setAddSemType] = useState('Semester 1');
+  // Per-semester NUSMods import state: { [sem]: { url, loading, error } }
+  const [nusmodsState, setNusmodsState] = useState({});
   const fileInputRef = useRef(null);
   const fileInputRef2 = useRef(null);
 
-  const { modules, ready, fetchCredits } = useNUSMods();
+  const { modules, ready, fetchCredits, importFromNUSMods } = useNUSMods();
 
   const handleFile = useCallback(async (file) => {
     if (!file || file.type !== 'application/pdf') {
@@ -87,7 +90,7 @@ export default function App() {
         setError('No courses found. Ensure the PDF is an NUS transcript, or add courses manually.');
       }
       setDegrees(parsedDegrees);
-      setCourses(parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: isNonGraded(c.grade), degree: '' })));
+      setCourses(parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: c.grade === 'S', degree: '' })));
     } catch (e) {
       console.error(e);
       setError('Failed to parse transcript. You can add courses manually.');
@@ -114,9 +117,32 @@ export default function App() {
   // NUSMods: when a module is selected from autocomplete
   async function handleModuleSelect(courseId, mod) {
     update(courseId, 'name', mod.title);
-    // Fetch real credit count in background
     const credits = await fetchCredits(mod.moduleCode);
     if (credits !== null) update(courseId, 'units', credits);
+  }
+
+  function getNusmodsSem(sem) {
+    return nusmodsState[sem] ?? { url: '', loading: false, error: '' };
+  }
+  function setNusmodsSem(sem, patch) {
+    setNusmodsState(s => ({ ...s, [sem]: { ...getNusmodsSem(sem), ...patch } }));
+  }
+
+  async function handleNusmodsImport(sem) {
+    const { url } = getNusmodsSem(sem);
+    if (!url.trim()) return;
+    setNusmodsSem(sem, { loading: true, error: '' });
+    try {
+      const mods = await importFromNUSMods(url.trim());
+      const semester = sem === 'Manual' ? '' : sem;
+      setCourses(cs => [
+        ...cs,
+        ...mods.map(m => ({ ...newRow(semester), code: m.code, name: m.name, units: m.units })),
+      ]);
+      setNusmodsSem(sem, { url: '', loading: false });
+    } catch (e) {
+      setNusmodsSem(sem, { loading: false, error: e.message || 'Failed to import from NUSMods.' });
+    }
   }
 
   // Semester management
@@ -232,13 +258,34 @@ export default function App() {
               return (
                 <section
                   key={sem}
-                  className={`semester-block${dropTarget === sem ? ' drop-target' : ''}`}
-                  onDragOver={e => { e.preventDefault(); setDropTarget(sem); }}
+                  className={`semester-block${dropTarget?.sem === sem && !dropTarget?.id ? ' drop-target' : ''}`}
+                  onDragOver={e => {
+                    e.preventDefault();
+                    // Only treat as semester-level target when not over a row
+                    if (!dropTarget?.id) setDropTarget({ sem });
+                  }}
                   onDrop={e => {
                     e.preventDefault();
+                    const dragId = e.dataTransfer.getData('text/plain');
+                    if (!dragId) { setDropTarget(null); return; }
+                    if (dropTarget?.id) {
+                      // Row-level drop: reorder within courses array
+                      const targetId = dropTarget.id;
+                      const above = dropTarget.above;
+                      setCourses(cs => {
+                        const next = cs.filter(c => c.id !== dragId);
+                        const insertIdx = next.findIndex(c => c.id === targetId);
+                        if (insertIdx === -1) return cs;
+                        const pos = above ? insertIdx : insertIdx + 1;
+                        const dragged = { ...cs.find(c => c.id === dragId), semester: sem === 'Manual' ? '' : sem };
+                        next.splice(pos, 0, dragged);
+                        return next;
+                      });
+                    } else {
+                      // Semester-level drop: just move to this semester, append at end
+                      update(dragId, 'semester', sem === 'Manual' ? '' : sem);
+                    }
                     setDropTarget(null);
-                    const id = e.dataTransfer.getData('text/plain');
-                    if (id) update(id, 'semester', sem === 'Manual' ? '' : sem);
                   }}
                 >
                   <div className="semester-heading">
@@ -286,7 +333,17 @@ export default function App() {
                                 e.dataTransfer.effectAllowed = 'move';
                               }}
                               onDragEnd={() => setDropTarget(null)}
-                              className={course.su ? 'row-su' : ''}
+                              onDragOver={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                const above = e.clientY < e.currentTarget.getBoundingClientRect().top + e.currentTarget.offsetHeight / 2;
+                                setDropTarget({ id: course.id, sem, above });
+                              }}
+                              className={[
+                                course.su ? 'row-su' : '',
+                                dropTarget?.id === course.id && dropTarget.above ? 'drop-above' : '',
+                                dropTarget?.id === course.id && !dropTarget.above ? 'drop-below' : '',
+                              ].filter(Boolean).join(' ')}
                             >
                               <td className="col-drag"><span className="drag-handle">⠿</span></td>
                               <td className="td-code">
@@ -361,12 +418,34 @@ export default function App() {
                     </table>
                   </div>
 
-                  <button
-                    className="btn btn-ghost btn-add-row"
-                    onClick={() => addRow(sem === 'Manual' ? '' : sem)}
-                  >
-                    + Add course to {sem}
-                  </button>
+                  <div className="sem-footer">
+                    <button
+                      className="btn btn-ghost btn-add-row"
+                      onClick={() => addRow(sem === 'Manual' ? '' : sem)}
+                    >
+                      + Add course
+                    </button>
+                    <div className="nusmods-inline">
+                      <input
+                        className="inp-nusmods"
+                        type="text"
+                        placeholder="Paste NUSMods timetable link…"
+                        value={getNusmodsSem(sem).url}
+                        onChange={e => setNusmodsSem(sem, { url: e.target.value })}
+                        onKeyDown={e => e.key === 'Enter' && handleNusmodsImport(sem)}
+                      />
+                      <button
+                        className="btn btn-ghost"
+                        onClick={() => handleNusmodsImport(sem)}
+                        disabled={getNusmodsSem(sem).loading || !getNusmodsSem(sem).url.trim()}
+                      >
+                        {getNusmodsSem(sem).loading ? 'Importing…' : 'Import'}
+                      </button>
+                    </div>
+                    {getNusmodsSem(sem).error && (
+                      <p className="error nusmods-err">{getNusmodsSem(sem).error}</p>
+                    )}
+                  </div>
                 </section>
               );
             })}
@@ -383,7 +462,8 @@ export default function App() {
               <button className="btn btn-primary" onClick={addSemester}>Add</button>
             </div>
 
-            <div className="bottom-actions">
+
+<div className="bottom-actions">
               <button className="btn btn-secondary" onClick={() => fileInputRef2.current?.click()}>
                 Re-upload transcript
               </button>
