@@ -238,10 +238,14 @@ header {
 .sem-gpa strong { color: var(--nus-orange); }
 
 /* ── Table ────────────────────────────────────────────── */
-.table-wrap { overflow-x: auto; }
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   font-size: 0.88rem;
 }
@@ -332,8 +336,16 @@ select:focus {
   background: #fff8f0;
 }
 
-.inp-code { font-family: 'Courier New', monospace; font-weight: 600; }
-.inp-name { min-width: 200px; }
+.inp-code {
+  display: block;
+  min-width: 120px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+}
+.inp-name {
+  display: block;
+  min-width: 280px;
+}
 .inp-units { width: 60px; text-align: center; }
 .sel-grade { width: 70px; cursor: pointer; }
 
@@ -461,7 +473,14 @@ select:focus {
 }
 
 /* ── CodeInput autocomplete ───────────────────────────── */
-.td-code { position: relative; }
+.td-code {
+  position: relative;
+  min-width: 130px;
+}
+
+.td-name {
+  min-width: 280px;
+}
 
 .code-input-wrap {
   position: relative;
@@ -610,5 +629,7 @@ footer {
   .header-inner { flex-direction: column; align-items: flex-start; }
   .cumulative-gpa { align-items: flex-start; }
   .gpa-value { font-size: 1.8rem; }
-  .col-name { min-width: 140px; }
+  .table-wrap table { min-width: 900px; }
+  .td-name { min-width: 320px; }
+  .inp-name { min-width: 320px; }
 }

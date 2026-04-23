@@ -370,7 +370,7 @@ export default function App() {
                                   ensureModulesLoaded={refreshModules}
                                 />
                               </td>
-                              <td>
+                              <td className="td-name">
                                 <input
                                   value={course.name}
                                   onChange={e => update(course.id, 'name', e.target.value)}
