@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
-export function CodeInput({ value, onChange, onSelect, modules, ready }) {
+export function CodeInput({ value, onChange, onSelect, modules, ready, ensureModulesLoaded }) {
   const [open, setOpen] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [highlighted, setHighlighted] = useState(0);
@@ -9,11 +9,12 @@ export function CodeInput({ value, onChange, onSelect, modules, ready }) {
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
-  const getSuggestions = useCallback((q) => {
-    if (!q || q.length < 2 || !modules.length) return [];
+  const getSuggestions = useCallback((q, source = modules) => {
+    if (!q || q.length < 2 || !source.length) return [];
     const upper = q.toUpperCase();
-    return modules
+    return source
       .filter(m => m.moduleCode.startsWith(upper))
+      .slice(0, 20);
   }, [modules]);
 
   function positionDropdown() {
@@ -35,16 +36,26 @@ export function CodeInput({ value, onChange, onSelect, modules, ready }) {
     setOpen(true);
   }
 
-  function handleChange(e) {
+  async function handleChange(e) {
     const q = e.target.value.toUpperCase();
     onChange(q);
-    const sugs = getSuggestions(q);
+    let source = modules;
+    if (q.length >= 2 && source.length === 0 && ensureModulesLoaded) {
+      source = await ensureModulesLoaded();
+      const currentValue = inputRef.current?.querySelector('input')?.value.toUpperCase() ?? '';
+      if (currentValue !== q) return;
+    }
+    const sugs = getSuggestions(q, source);
     if (sugs.length > 0) openWith(sugs);
     else setOpen(false);
   }
 
-  function handleFocus() {
-    const sugs = getSuggestions(value);
+  async function handleFocus() {
+    let source = modules;
+    if (source.length === 0 && ensureModulesLoaded) {
+      source = await ensureModulesLoaded();
+    }
+    const sugs = getSuggestions(value, source);
     if (sugs.length > 0) openWith(sugs);
   }
 

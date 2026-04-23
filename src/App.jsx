@@ -3,6 +3,7 @@ import { parseTranscript } from './utils/parseTranscript';
 import { calculateGPA, GRADE_POINTS } from './utils/gpa';
 import { useNUSMods } from './hooks/useNUSMods';
 import { CodeInput } from './components/CodeInput';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './App.css';
 
 const ALL_GRADES = [
@@ -11,7 +12,7 @@ const ALL_GRADES = [
   'C+', 'C',
   'D+', 'D',
   'F',
-  'S', 'U', 'CS', 'CU', 'EXE', 'IC', 'IP', 'W', 'WU',
+  'S', 'U', 'CS', 'CU', 'EXE', 'IC', 'IP', 'W', 'WU', 'I',
 ];
 
 const currentYear = new Date().getFullYear();
@@ -81,14 +82,19 @@ export default function App() {
   const fileInputRef = useRef(null);
   const fileInputRef2 = useRef(null);
 
-  const { modules, ready, fetchCredits, importFromNUSMods } = useNUSMods();
+  const { modules, ready, refreshModules, fetchCredits, importFromNUSMods } = useNUSMods();
 
   const handleFile = useCallback(async (file) => {
-    if (!file || file.type !== 'application/pdf') {
+    const isPdf = file && (
+      file.type === 'application/pdf' ||
+      /\.pdf$/i.test(file.name ?? '')
+    );
+    if (!isPdf) {
       setError('Please upload a PDF file.');
       return;
     }
     setError('');
+    setNusmodsState({});
     setLoading(true);
     try {
       const { courses: parsed, degrees: parsedDegrees } = await parseTranscript(file);
@@ -171,7 +177,7 @@ export default function App() {
     }
   }
 
-  const reset = () => { setCourses([]); setDegrees([]); setError(''); };
+  const reset = () => { setCourses([]); setDegrees([]); setError(''); setNusmodsState({}); };
   const isDoubleDegree = degrees.length >= 2;
   const effectiveDegree = (course) => course.degree || degrees[0] || '';
 
@@ -215,7 +221,7 @@ export default function App() {
             <ol className="upload-instructions">
               <li>Go to <strong>EduRec</strong> &gt; <strong>Academics</strong> &gt; <strong>Transcripts</strong> &gt; <strong>View Unofficial Transcript</strong> &gt; <strong>Undergraduate Unofficial</strong> &gt; <strong>Submit</strong></li>
               <li>Upload your unofficial transcript below</li>
-              <li>For semesters not yet reflected in the transcript: Add new semester and insert NUSMODS link to populate it with your courses.</li>
+              <li>For semesters not yet reflected in the transcript: Add new semester and insert NUSMODS <strong>original</strong> link to populate it with your courses.</li>
             </ol>
             <div
               className={`upload-zone ${dragging ? 'dragging' : ''}`}
@@ -360,6 +366,7 @@ export default function App() {
                                   onSelect={mod => handleModuleSelect(course.id, mod)}
                                   modules={modules}
                                   ready={ready}
+                                  ensureModulesLoaded={refreshModules}
                                 />
                               </td>
                               <td>
@@ -435,26 +442,34 @@ export default function App() {
                     >
                       + Add course
                     </button>
-                    <div className="nusmods-inline">
-                      <input
-                        className="inp-nusmods"
-                        type="text"
-                        placeholder="Paste NUSMods timetable link…"
-                        value={getNusmodsSem(sem).url}
-                        onChange={e => setNusmodsSem(sem, { url: e.target.value })}
-                        onKeyDown={e => e.key === 'Enter' && handleNusmodsImport(sem)}
-                      />
-                      <button
-                        className="btn btn-ghost"
-                        onClick={() => handleNusmodsImport(sem)}
-                        disabled={getNusmodsSem(sem).loading || !getNusmodsSem(sem).url.trim()}
-                      >
-                        {getNusmodsSem(sem).loading ? 'Importing…' : 'Import'}
-                      </button>
+                    <div className="nusmods-block">
+                      <div className="nusmods-inline">
+                        <input
+                          className="inp-nusmods"
+                          type="text"
+                          placeholder="Paste NUSMods timetable link…"
+                          value={getNusmodsSem(sem).url}
+                          onChange={e => {
+                            const url = e.target.value;
+                            setNusmodsSem(sem, {
+                              url,
+                              error: url.trim() ? getNusmodsSem(sem).error : '',
+                            });
+                          }}
+                          onKeyDown={e => e.key === 'Enter' && handleNusmodsImport(sem)}
+                        />
+                        <button
+                          className="btn btn-ghost"
+                          onClick={() => handleNusmodsImport(sem)}
+                          disabled={getNusmodsSem(sem).loading || !getNusmodsSem(sem).url.trim()}
+                        >
+                          {getNusmodsSem(sem).loading ? 'Importing…' : 'Import'}
+                        </button>
+                      </div>
+                      {getNusmodsSem(sem).error && (
+                        <p className="error nusmods-err">{getNusmodsSem(sem).error}</p>
+                      )}
                     </div>
-                    {getNusmodsSem(sem).error && (
-                      <p className="error nusmods-err">{getNusmodsSem(sem).error}</p>
-                    )}
                   </div>
                 </section>
               );
@@ -497,6 +512,7 @@ export default function App() {
         <p>S/U-opted, non-graded, and courses without MCs are excluded from GPA computation.</p>
         <p>Transcript parsing is not perfect. Do check for mistakes and adjust your courses when necessary.</p>
       </footer>
+      <SpeedInsights />
     </div>
   );
 }

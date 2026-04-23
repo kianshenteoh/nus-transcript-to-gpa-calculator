@@ -553,7 +553,14 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+}
+
+.nusmods-block {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -570,6 +577,7 @@ select:focus {
 
 .nusmods-err {
   margin: 0;
+  max-width: none;
   width: 100%;
   font-size: 0.82rem;
 }
