@@ -215,6 +215,7 @@ export default function App() {
             <ol className="upload-instructions">
               <li>Go to <strong>EduRec</strong> &gt; <strong>Academics</strong> &gt; <strong>Transcripts</strong> &gt; <strong>View Unofficial Transcript</strong> &gt; <strong>Undergraduate Unofficial</strong> &gt; <strong>Submit</strong></li>
               <li>Upload your unofficial transcript below</li>
+              <li>For semesters not yet reflected in the transcript: Add new semester and insert NUSMODS link to populate it with your courses.</li>
             </ol>
             <div
               className={`upload-zone ${dragging ? 'dragging' : ''}`}
