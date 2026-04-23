@@ -152,7 +152,7 @@ export function useNUSMods() {
         .map(normalizeModuleCode)
         .filter(code => MODULE_CODE_RE.test(code))
     )];
-    if (codes.length === 0) throw new Error('No modules found in URL');
+    if (codes.length === 0) throw new Error('No modules found in URL. Do not use the shortened link');
 
     let titleMap = {};
     try {

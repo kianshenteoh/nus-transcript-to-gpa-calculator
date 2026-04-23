@@ -151,7 +151,7 @@ export default function App() {
         ...cs,
         ...mods.map(m => ({ ...newRow(semester), code: m.code, name: m.name, units: m.units })),
       ]);
-      setNusmodsSem(sem, { url: '', loading: false });
+      setNusmodsSem(sem, { url: '', loading: false, error: '' });
     } catch (e) {
       setNusmodsSem(sem, { loading: false, error: e.message || 'Failed to import from NUSMods.' });
     }
