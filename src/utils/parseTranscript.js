@@ -33,7 +33,10 @@ async function extractItems(file) {
 function groupIntoRows(items) {
   const YTOL = 4;
   const rows = [];
-  for (const item of items) {
+  const sortedItems = [...items].sort(
+    (a, b) => a.page - b.page || b.y - a.y || a.x - b.x
+  );
+  for (const item of sortedItems) {
     const row = rows.find(r => r.page === item.page && Math.abs(r.y - item.y) <= YTOL);
     if (row) {
       row.items.push(item);
@@ -151,8 +154,10 @@ function parseSingleColumn(items, rowPage, rowY, mid, semHeaders, lastSem, out) 
     if (i >= items.length || !GRADE_RE.test(items[i].str)) continue;
     const grade = items[i++].str;
 
-    if (i >= items.length || !UNITS_RE.test(items[i].str)) continue;
-    const units = parseFloat(items[i++].str);
+    let units = null;
+    if (i < items.length && UNITS_RE.test(items[i].str)) {
+      units = parseFloat(items[i++].str);
+    }
 
     const semester = assignSemester(codeItem.x, rowPage, rowY, mid, semHeaders, lastSem);
     out.push({ code, name: nameParts.join(' '), grade, units, semester });

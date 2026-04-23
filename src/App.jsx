@@ -383,10 +383,13 @@ export default function App() {
                               <td>
                                 <input
                                   type="number"
-                                  value={course.units}
+                                  value={course.units ?? ''}
                                   min={0}
                                   step={1}
-                                  onChange={e => update(course.id, 'units', parseFloat(e.target.value) || 0)}
+                                  onChange={e => {
+                                    const nextUnits = e.target.value === '' ? null : parseFloat(e.target.value);
+                                    update(course.id, 'units', Number.isFinite(nextUnits) ? nextUnits : null);
+                                  }}
                                   className="inp-units"
                                 />
                               </td>
@@ -490,7 +493,7 @@ export default function App() {
         <p>
           A+/A = 5.0 · A- = 4.5 · B+ = 4.0 · B = 3.5 · B- = 3.0 · C+ = 2.5 · C = 2.0 · D+ = 1.5 · D = 1.0 · F = 0.0
         </p>
-        <p>S/U-opted and non-graded courses are excluded from GPA computation.</p>
+        <p>S/U-opted, non-graded, and courses without MCs are excluded from GPA computation.</p>
         <p>Transcript parsing is not perfect. Do check for mistakes and adjust your courses when necessary.</p>
       </footer>
     </div>

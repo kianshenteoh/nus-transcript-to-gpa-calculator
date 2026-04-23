@@ -23,7 +23,7 @@ export function calculateGPA(courses) {
   for (const course of courses) {
     if (course.su) continue;
     const pts = GRADE_POINTS[course.grade];
-    if (pts === undefined) continue;
+    if (pts === undefined || typeof course.units !== 'number' || !Number.isFinite(course.units)) continue;
     totalPoints += pts * course.units;
     totalUnits += course.units;
   }
