@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { parseTranscript } from './utils/parseTranscript';
 import { calculateGPA, GRADE_POINTS } from './utils/gpa';
 import { useNUSMods } from './hooks/useNUSMods';
@@ -221,7 +222,7 @@ export default function App() {
             <ol className="upload-instructions">
               <li>Go to <strong>EduRec</strong> &gt; <strong>Academics</strong> &gt; <strong>Transcripts</strong> &gt; <strong>View Unofficial Transcript</strong> &gt; <strong>Undergraduate Unofficial</strong> &gt; <strong>Submit</strong></li>
               <li>Upload your unofficial transcript below</li>
-              <li>For semesters not yet reflected in the transcript: Add new semester and insert NUSMODS <strong>original</strong> link to populate it with your courses.</li>
+              <li>For semesters not yet reflected in the transcript: Add new semester and insert NUSMODS <strong>original</strong> (not shortened!) link to populate it with your courses.</li>
             </ol>
             <div
               className={`upload-zone ${dragging ? 'dragging' : ''}`}
@@ -512,6 +513,7 @@ export default function App() {
         <p>S/U-opted, non-graded, and courses without MCs are excluded from GPA computation.</p>
         <p>Transcript parsing is not perfect. Do check for mistakes and adjust your courses when necessary.</p>
       </footer>
+      <Analytics />
       <SpeedInsights />
     </div>
   );
