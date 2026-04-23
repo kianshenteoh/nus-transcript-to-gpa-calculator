@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://nustranscripttogpacalculator.vercel.app/sitemap.xml
