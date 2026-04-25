@@ -58,6 +58,14 @@ header {
   letter-spacing: -0.3px;
 }
 
+.header-title p {
+  margin-top: 4px;
+  font-size: 0.86rem;
+  font-weight: 400;
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
 .cumulative-gpa {
   text-align: right;
   display: flex;
