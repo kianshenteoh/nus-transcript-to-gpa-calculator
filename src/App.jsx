@@ -190,7 +190,7 @@ export default function App() {
         <div className="header-inner">
           <div className="header-title">
             <h1>NUS GPA Calculator - Transcript Upload</h1>
-            <p>Calculate and Track your GPA through uploading your unofficial transcript!</p>
+            <p>Calculate and track your GPA through uploading your unofficial transcript!</p>
           </div>
           {isDoubleDegree ? (
             <div className="header-degree-gpas">
