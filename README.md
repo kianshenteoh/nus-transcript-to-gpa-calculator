@@ -67,7 +67,9 @@ If a transcript does not parse correctly, you can still use the app as a manual 
 
 ## Privacy
 
-Transcript parsing runs in the browser. The app does not require a login or a backend database for transcript contents.
+Your transcript is parsed locally in your browser. This site does not upload or store your transcript PDF or extracted grades.
+
+The app does not require a login or a backend database for transcript contents.
 
 The deployed site uses Vercel Analytics and Speed Insights for page-level usage and performance information. It should not be treated as an official NUS service.
 
