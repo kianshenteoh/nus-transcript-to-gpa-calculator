@@ -144,6 +144,8 @@ export default function App() {
       const { courses: parsed, degrees: parsedDegrees } = await parseTranscript(file);
       if (parsed.length === 0) {
         setError('No courses found. Ensure the PDF is an NUS transcript, or add courses manually.');
+      } else {
+        window.gtag?.('event', 'transcript_upload');
       }
       setDegrees(parsedDegrees);
       setCourses(parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: c.grade === 'S', degree: '' })));
