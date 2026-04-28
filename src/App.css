@@ -95,6 +95,34 @@ header {
   opacity: 0.75;
 }
 
+/* ── Header Toolbar ───────────────────────────────────── */
+.header-toolbar {
+  padding: 0 24px;
+}
+
+.header-toolbar-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 6px 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-header-tool {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-header-tool:hover { border-color: var(--nus-orange); color: var(--nus-orange); }
+
 /* ── Upload Zone ──────────────────────────────────────── */
 .upload-section {
   display: flex;

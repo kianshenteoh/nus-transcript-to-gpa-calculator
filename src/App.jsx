@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { parseTranscript } from './utils/parseTranscript';
 import { calculateGPA, GRADE_POINTS } from './utils/gpa';
@@ -69,8 +69,18 @@ function GpaBadge({ gpa }) {
 }
 
 export default function App() {
-  const [courses, setCourses] = useState([]);
-  const [degrees, setDegrees] = useState([]);
+  const [courses, setCourses] = useState(() => {
+    try {
+      const raw = localStorage.getItem('gpa-data');
+      return raw ? (JSON.parse(raw).courses ?? []) : [];
+    } catch { return []; }
+  });
+  const [degrees, setDegrees] = useState(() => {
+    try {
+      const raw = localStorage.getItem('gpa-data');
+      return raw ? (JSON.parse(raw).degrees ?? []) : [];
+    } catch { return []; }
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -82,8 +92,41 @@ export default function App() {
   const [nusmodsState, setNusmodsState] = useState({});
   const fileInputRef = useRef(null);
   const fileInputRef2 = useRef(null);
+  const jsonInputRef = useRef(null);
 
   const { modules, ready, refreshModules, fetchCredits, importFromNUSMods } = useNUSMods();
+
+  useEffect(() => {
+    localStorage.setItem('gpa-data', JSON.stringify({ courses, degrees }));
+  }, [courses, degrees]);
+
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify({ degrees, courses }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nus-gpa.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImportJSON(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!Array.isArray(data.courses)) throw new Error();
+        setCourses(data.courses.map(c => ({ ...c, id: crypto.randomUUID() })));
+        setDegrees(data.degrees ?? []);
+        setError('');
+        setNusmodsState({});
+      } catch {
+        setError('Failed to import: invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  }
 
   const handleFile = useCallback(async (file) => {
     const isPdf = file && (
@@ -216,6 +259,21 @@ export default function App() {
           )}
         </div>
       </header>
+      <div className="header-toolbar">
+        <div className="header-toolbar-inner">
+          {courses.length > 0 && (
+            <button className="btn btn-header-tool" onClick={exportJSON}>Export JSON</button>
+          )}
+          <button className="btn btn-header-tool" onClick={() => jsonInputRef.current?.click()}>Import JSON</button>
+          <input
+            ref={jsonInputRef}
+            type="file"
+            accept="application/json"
+            hidden
+            onChange={(e) => { handleImportJSON(e.target.files[0]); e.target.value = ''; }}
+          />
+        </div>
+      </div>
 
       <main>
         {courses.length === 0 ? (
