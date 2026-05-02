@@ -566,6 +566,32 @@ export default function App() {
             </div>
           </>
         )}
+
+        <section className="seo-section" aria-labelledby="faq-title">
+          <h2 id="faq-title">Frequently asked questions</h2>
+          <details className="faq-item">
+            <summary>How is this tool different from other GPA calculators?</summary>
+            <p>
+              You can upload your unofficial transcript PDF to fill in completed modules quickly,
+              and you can also import an original NUSMods timetable link instead of manually keying
+              in every module one by one.
+            </p>
+          </details>
+          <details className="faq-item">
+            <summary>Does my transcript get uploaded?</summary>
+            <p>
+              No. Transcript parsing happens in the browser, so your transcript is not sent or
+              stored anywhere else.
+            </p>
+          </details>
+          <details className="faq-item">
+            <summary>Can I plan future semesters?</summary>
+            <p>
+              Yes. You can add modules manually or import them from NUSMods to estimate how future
+              grades affect your cumulative GPA.
+            </p>
+          </details>
+        </section>
       </main>
 
       <footer>
