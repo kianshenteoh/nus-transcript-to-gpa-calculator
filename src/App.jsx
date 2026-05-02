@@ -241,7 +241,7 @@ export default function App() {
             <div className="header-degree-gpas">
               {degrees.map(deg => {
                 const { gpa: degGpa, totalUnits: degUnits } = calculateGPA(
-                  courses.filter(c => effectiveDegree(c) === deg)
+                  courses.filter(c => effectiveDegree(c) === deg || c.degree === 'both')
                 );
                 return (
                   <div key={deg} className="header-degree-gpa">
@@ -481,6 +481,7 @@ export default function App() {
                                     {degrees.map(d => (
                                       <option key={d} value={d}>{shortDegreeName(d)}</option>
                                     ))}
+                                    <option value="both">Both</option>
                                   </select>
                                 </td>
                               )}
