@@ -101,6 +101,29 @@ function semesterSortKey(sem) {
   return year * 10 + (order[s] ?? 9);
 }
 
+function getNextSemesterSelection(semesterLabels) {
+  const ranked = semesterLabels
+    .filter((sem) => sem && sem !== 'Manual' && Number.isFinite(semesterSortKey(sem)))
+    .sort((a, b) => semesterSortKey(a) - semesterSortKey(b));
+
+  const latest = ranked.at(-1);
+  if (!latest) return null;
+
+  const m = latest.match(/AY(\d{4})\/(\d{4}) (.+)/);
+  if (!m) return null;
+
+  const startYear = parseInt(m[1], 10);
+  const currentSem = m[3];
+  const nextSemMap = {
+    'Semester 1': { ay: `${startYear}/${startYear + 1}`, sem: 'Semester 2' },
+    'Semester 2': { ay: `${startYear}/${startYear + 1}`, sem: 'Special Term I' },
+    'Special Term I': { ay: `${startYear}/${startYear + 1}`, sem: 'Special Term II' },
+    'Special Term II': { ay: `${startYear + 1}/${startYear + 2}`, sem: 'Semester 1' },
+  };
+
+  return nextSemMap[currentSem] ?? null;
+}
+
 function newRow(semester = '') {
   return { id: crypto.randomUUID(), code: '', name: '', grade: 'A', units: 4, su: false, semester, degree: '' };
 }
@@ -185,10 +208,16 @@ export default function App() {
       try {
         const data = JSON.parse(e.target.result);
         if (!Array.isArray(data.courses)) throw new Error();
-        setCourses(data.courses.map(c => ({ ...c, id: crypto.randomUUID() })));
+        const importedCourses = data.courses.map(c => ({ ...c, id: crypto.randomUUID() }));
+        setCourses(importedCourses);
         setDegrees(data.degrees ?? []);
         setError('');
         setNusmodsState({});
+        const nextSemester = getNextSemesterSelection(importedCourses.map(c => c.semester || 'Manual'));
+        if (nextSemester) {
+          setAddSemAY(nextSemester.ay);
+          setAddSemType(nextSemester.sem);
+        }
       } catch {
         setError('Failed to import: invalid JSON file.');
       }
@@ -215,8 +244,14 @@ export default function App() {
       } else {
         window.gtag?.('event', 'transcript_upload');
       }
+      const importedCourses = parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: c.grade === 'S', degree: '' }));
       setDegrees(parsedDegrees);
-      setCourses(parsed.map(c => ({ ...c, id: crypto.randomUUID(), su: c.grade === 'S', degree: '' })));
+      setCourses(importedCourses);
+      const nextSemester = getNextSemesterSelection(importedCourses.map(c => c.semester || 'Manual'));
+      if (nextSemester) {
+        setAddSemAY(nextSemester.ay);
+        setAddSemType(nextSemester.sem);
+      }
     } catch (e) {
       console.error(e);
       setError('Failed to parse transcript. You can add courses manually.');
