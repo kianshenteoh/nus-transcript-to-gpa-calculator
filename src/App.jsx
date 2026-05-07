@@ -23,6 +23,70 @@ const AY_OPTIONS = Array.from({ length: 21 }, (_, i) => {
 });
 const SEM_OPTIONS = ['Semester 1', 'Semester 2', 'Special Term I', 'Special Term II'];
 
+const OFFICIAL_LINKS = {
+  grading: 'https://www.nus.edu.sg/registrar/academic-information-policies/non-graduating/academic-structure-grading',
+  continuation: 'https://www.nus.edu.sg/registrar/academic-information-policies/undergraduate-students/continuation-and-graduation-requirements',
+  resources: 'https://www.nus.edu.sg/registrar/academic-information-policies/undergraduate-students/information-and-resources',
+  myEduRec: 'https://myedurec.nus.edu.sg/',
+  nusMods: 'https://nusmods.com/',
+  github: 'https://github.com/kianshenteoh/nus-transcript-to-gpa-calculator',
+};
+
+const HONOURS_ROWS = [
+  ['First Class Honours', '4.50'],
+  ['Second Class Honours (Upper)', '4.00'],
+  ['Second Class Honours (Lower)', '3.50'],
+  ['Third Class Honours', '3.00'],
+];
+
+const GRADE_ROWS = [
+  ['A+ / A', '5.0'],
+  ['A-', '4.5'],
+  ['B+', '4.0'],
+  ['B', '3.5'],
+  ['B-', '3.0'],
+  ['C+', '2.5'],
+  ['C', '2.0'],
+  ['D+', '1.5'],
+  ['D', '1.0'],
+  ['F', '0.0'],
+];
+
+const FAQS = [
+  {
+    question: 'What CAP do you need for First Class Honours at NUS?',
+    answer: 'A cumulative average point of 4.50 or above is the usual threshold for First Class Honours at NUS. Particular faculties or schools may impose additional requirements, so use this as the baseline planning benchmark rather than the only graduation rule.',
+  },
+  {
+    question: 'How does the S/U option affect my CAP?',
+    answer: 'When you S/U an eligible module, its letter grade is excluded from CAP computation. The module contributes neither grade points nor graded units to the weighted average, which is why S/U decisions can protect your cumulative CAP.',
+  },
+  {
+    question: 'What is the NUS grading scale?',
+    answer: 'NUS uses a 5.0 scale for standard letter-graded modules. A+ and A are 5.0, A- is 4.5, B+ is 4.0, B is 3.5, B- is 3.0, C+ is 2.5, C is 2.0, D+ is 1.5, D is 1.0, and F is 0.0.',
+  },
+  {
+    question: 'How is NUS CAP calculated?',
+    answer: 'CAP is the weighted average of your module grade points. Multiply each module grade point by its units, add those totals together, then divide by the total number of graded units included in CAP.',
+  },
+  {
+    question: 'Do S/U modules count toward CAP at NUS?',
+    answer: 'No. S/U modules do not count toward CAP because they do not contribute grade points to the weighted average. They may still count toward degree progress when the module receives an S, but not toward the CAP average itself.',
+  },
+  {
+    question: 'Can I use this calculator to project future semesters?',
+    answer: 'Yes. You can add manual modules or import an original NUSMods timetable link to estimate how planned grades could change your cumulative CAP before results are released.',
+  },
+  {
+    question: 'Does this tool upload my transcript to a server?',
+    answer: 'No. The transcript parsing flow stays in the browser. This calculator is designed so you can extract your modules locally without sending the PDF to an external backend for processing.',
+  },
+  {
+    question: 'Where can I verify my official CAP and academic standing?',
+    answer: 'Use myEduRec and your unofficial transcript as the official student-facing records, then cross-check edge cases against current NUS Registrar policy pages for grading, S/U eligibility, and degree classification rules.',
+  },
+];
+
 function semesterLabel(ay, sem) {
   return `AY${ay} ${sem}`;
 }
@@ -31,7 +95,7 @@ function semesterSortKey(sem) {
   if (sem === 'Manual') return Infinity;
   const m = sem.match(/AY(\d{4})\/\d{4} (.+)/);
   if (!m) return Infinity;
-  const year = parseInt(m[1]);
+  const year = parseInt(m[1], 10);
   const s = m[2];
   const order = { 'Semester 1': 1, 'Semester 2': 2, 'Special Term I': 3, 'Special Term II': 4 };
   return year * 10 + (order[s] ?? 9);
@@ -57,14 +121,14 @@ function shortDegreeName(name) {
   return name;
 }
 
-// Round to 3dp first to correct floating-point imprecision (e.g. 4.425 stored as 4.4249999…),
+// Round to 3dp first to correct floating-point imprecision (for example 4.425 stored as 4.4249999),
 // then display at 2dp with standard half-up rounding.
 function fmtGPA(gpa) {
   return (Math.round(Math.round(gpa * 1000) / 10) / 100).toFixed(2);
 }
 
 function GpaBadge({ gpa }) {
-  if (gpa === null) return <span className="gpa-value muted">—</span>;
+  if (gpa === null) return <span className="gpa-value muted">-</span>;
   return <span className="gpa-value">{fmtGPA(gpa)}</span>;
 }
 
@@ -73,13 +137,17 @@ export default function App() {
     try {
       const raw = localStorage.getItem('gpa-data');
       return raw ? (JSON.parse(raw).courses ?? []) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
   const [degrees, setDegrees] = useState(() => {
     try {
       const raw = localStorage.getItem('gpa-data');
       return raw ? (JSON.parse(raw).degrees ?? []) : [];
-    } catch { return []; }
+    } catch {
+      return [];
+    }
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -172,7 +240,6 @@ export default function App() {
 
   const addRow = (semester = '') => setCourses(cs => [...cs, newRow(semester)]);
 
-  // NUSMods: when a module is selected from autocomplete
   async function handleModuleSelect(courseId, mod) {
     update(courseId, 'name', mod.title);
     const credits = await fetchCredits(mod.moduleCode);
@@ -182,6 +249,7 @@ export default function App() {
   function getNusmodsSem(sem) {
     return nusmodsState[sem] ?? { url: '', loading: false, error: '' };
   }
+
   function setNusmodsSem(sem, patch) {
     setNusmodsState(s => ({ ...s, [sem]: { ...getNusmodsSem(sem), ...patch } }));
   }
@@ -203,13 +271,12 @@ export default function App() {
     }
   }
 
-  // Semester management
   const semesters = [...new Set(courses.map(c => c.semester || 'Manual'))]
     .sort((a, b) => semesterSortKey(a) - semesterSortKey(b));
 
   function addSemester() {
     const label = semesterLabel(addSemAY, addSemType);
-    if (semesters.includes(label)) return; // already exists
+    if (semesters.includes(label)) return;
     setCourses(cs => [...cs, newRow(label)]);
   }
 
@@ -223,7 +290,12 @@ export default function App() {
     }
   }
 
-  const reset = () => { setCourses([]); setDegrees([]); setError(''); setNusmodsState({}); };
+  const reset = () => {
+    setCourses([]);
+    setDegrees([]);
+    setError('');
+    setNusmodsState({});
+  };
   const isDoubleDegree = degrees.length >= 2;
   const effectiveDegree = (course) => course.degree || degrees[0] || '';
 
@@ -234,8 +306,12 @@ export default function App() {
       <header>
         <div className="header-inner">
           <div className="header-title">
-            <h1>NUS GPA Calculator - Transcript Upload</h1>
-            <p>Calculate and track your GPA through uploading your unofficial transcript!</p>
+            <a className="header-home-link" href="/">NUS GPA Calculator - Transcript Upload</a>
+            <div className="header-page-links">
+              <a href="/about.html">About</a>
+              <a href="/privacy.html">Privacy</a>
+              <a href="/methodology.html">Methodology</a>
+            </div>
           </div>
           {isDoubleDegree ? (
             <div className="header-degree-gpas">
@@ -272,7 +348,10 @@ export default function App() {
             type="file"
             accept="application/json"
             hidden
-            onChange={(e) => { handleImportJSON(e.target.files[0]); e.target.value = ''; }}
+            onChange={(e) => {
+              handleImportJSON(e.target.files[0]);
+              e.target.value = '';
+            }}
           />
         </div>
       </div>
@@ -282,12 +361,15 @@ export default function App() {
           <div className="upload-section">
             <ol className="upload-instructions">
               <li>Go to <strong>EduRec</strong> &gt; <strong>Academics</strong> &gt; <strong>Transcripts</strong> &gt; <strong>View Unofficial Transcript</strong> &gt; <strong>Undergraduate Unofficial</strong> &gt; <strong>Submit</strong></li>
-              <li>Upload your unofficial transcript below</li>
-              <li>For semesters not yet reflected in the transcript: Add new semester and insert NUSMODS <strong>original</strong> (not shortened!) link to populate it with your courses.</li>
+              <li>Upload your unofficial transcript below.</li>
+              <li>For semesters not yet reflected in the transcript, add a new semester and paste the original NUSMods link to populate your courses.</li>
             </ol>
             <div
               className={`upload-zone ${dragging ? 'dragging' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               onClick={() => fileInputRef.current?.click()}
@@ -302,11 +384,11 @@ export default function App() {
               {loading ? (
                 <div className="loading-state">
                   <div className="spinner" />
-                  <p>Parsing transcript…</p>
+                  <p>Parsing transcript...</p>
                 </div>
               ) : (
                 <>
-                  <div className="upload-icon">📄</div>
+                  <div className="upload-icon">PDF</div>
                   <p className="upload-title">Drop your NUS transcript here</p>
                   <p className="upload-sub">or click to select a PDF</p>
                 </>
@@ -322,7 +404,7 @@ export default function App() {
           <>
             {loading && (
               <div className="loading-bar">
-                <div className="spinner" /> Parsing transcript…
+                <div className="spinner" /> Parsing transcript...
               </div>
             )}
             {error && <p className="error">{error}</p>}
@@ -336,15 +418,16 @@ export default function App() {
                   className={`semester-block${dropTarget?.sem === sem && !dropTarget?.id ? ' drop-target' : ''}`}
                   onDragOver={e => {
                     e.preventDefault();
-                    // Only treat as semester-level target when not over a row
                     if (!dropTarget?.id) setDropTarget({ sem });
                   }}
                   onDrop={e => {
                     e.preventDefault();
                     const dragId = e.dataTransfer.getData('text/plain');
-                    if (!dragId) { setDropTarget(null); return; }
+                    if (!dragId) {
+                      setDropTarget(null);
+                      return;
+                    }
                     if (dropTarget?.id) {
-                      // Row-level drop: reorder within courses array
                       const targetId = dropTarget.id;
                       const above = dropTarget.above;
                       setCourses(cs => {
@@ -352,12 +435,13 @@ export default function App() {
                         const insertIdx = next.findIndex(c => c.id === targetId);
                         if (insertIdx === -1) return cs;
                         const pos = above ? insertIdx : insertIdx + 1;
-                        const dragged = { ...cs.find(c => c.id === dragId), semester: sem === 'Manual' ? '' : sem };
+                        const source = cs.find(c => c.id === dragId);
+                        if (!source) return cs;
+                        const dragged = { ...source, semester: sem === 'Manual' ? '' : sem };
                         next.splice(pos, 0, dragged);
                         return next;
                       });
                     } else {
-                      // Semester-level drop: just move to this semester, append at end
                       update(dragId, 'semester', sem === 'Manual' ? '' : sem);
                     }
                     setDropTarget(null);
@@ -376,7 +460,7 @@ export default function App() {
                         onClick={() => deleteSemester(sem)}
                         title={`Delete ${sem}`}
                       >
-                        🗑
+                        Delete
                       </button>
                     </div>
                   </div>
@@ -420,7 +504,7 @@ export default function App() {
                                 dropTarget?.id === course.id && !dropTarget.above ? 'drop-below' : '',
                               ].filter(Boolean).join(' ')}
                             >
-                              <td className="col-drag"><span className="drag-handle">⠿</span></td>
+                              <td className="col-drag"><span className="drag-handle">::</span></td>
                               <td className="td-code">
                                 <CodeInput
                                   value={course.code}
@@ -486,10 +570,10 @@ export default function App() {
                                 </td>
                               )}
                               <td className="col-pts-cell">
-                                {pts !== null ? pts.toFixed(1) : <span className="muted">—</span>}
+                                {pts !== null ? pts.toFixed(1) : <span className="muted">-</span>}
                               </td>
                               <td>
-                                <button className="btn-del" onClick={() => remove(course.id)} title="Remove">✕</button>
+                                <button className="btn-del" onClick={() => remove(course.id)} title="Remove">X</button>
                               </td>
                             </tr>
                           );
@@ -510,7 +594,7 @@ export default function App() {
                         <input
                           className="inp-nusmods"
                           type="text"
-                          placeholder="Paste NUSMods timetable link…"
+                          placeholder="Paste NUSMods timetable link..."
                           value={getNusmodsSem(sem).url}
                           onChange={e => {
                             const url = e.target.value;
@@ -526,7 +610,7 @@ export default function App() {
                           onClick={() => handleNusmodsImport(sem)}
                           disabled={getNusmodsSem(sem).loading || !getNusmodsSem(sem).url.trim()}
                         >
-                          {getNusmodsSem(sem).loading ? 'Importing…' : 'Import'}
+                          {getNusmodsSem(sem).loading ? 'Importing...' : 'Import'}
                         </button>
                       </div>
                       {getNusmodsSem(sem).error && (
@@ -538,7 +622,6 @@ export default function App() {
               );
             })}
 
-            {/* Add Semester */}
             <div className="add-sem-card">
               <span className="add-sem-label">Add semester</span>
               <select value={addSemAY} onChange={e => setAddSemAY(e.target.value)} className="sel-ay">
@@ -550,8 +633,7 @@ export default function App() {
               <button className="btn btn-primary" onClick={addSemester}>Add</button>
             </div>
 
-
-<div className="bottom-actions">
+            <div className="bottom-actions">
               <button className="btn btn-secondary" onClick={() => fileInputRef2.current?.click()}>
                 Re-upload transcript
               </button>
@@ -567,39 +649,145 @@ export default function App() {
           </>
         )}
 
-        <section className="seo-section" aria-labelledby="faq-title">
-          <h2 id="faq-title">Frequently asked questions</h2>
-          <details className="faq-item">
-            <summary>How is this tool different from other GPA calculators?</summary>
+        <div className="seo-stack">
+          <section className="seo-card" id="about-cap" aria-labelledby="about-cap-title">
+            <h2 id="about-cap-title">About the NUS CAP System</h2>
             <p>
-              You can upload your unofficial transcript PDF to fill in completed modules quickly,
-              and you can also import an original NUSMods timetable link instead of manually keying
-              in every module one by one.
+              NUS uses a 5.0 cumulative average point system, commonly still called CAP even though
+              some Registrar pages now refer to it as GPA. For standard letter-graded modules, your
+              result is a weighted average: each grade point is multiplied by the module&apos;s units,
+              then divided by the total graded units counted toward the calculation.
             </p>
-          </details>
-          <details className="faq-item">
-            <summary>Does my transcript get uploaded?</summary>
             <p>
-              No. Transcript parsing happens in the browser, so your transcript is not sent or
-              stored anywhere else.
+              This calculator follows the standard NUS 5-point mapping for undergraduate planning.
+              Modules without grade points, such as S/U, CS/CU, EXE, IC, IP, W, or WU results, are
+              excluded from the CAP computation here in the same way they are excluded from the core
+              grade-point formula on the official Registrar guidance.
             </p>
-          </details>
-          <details className="faq-item">
-            <summary>Can I plan future semesters?</summary>
+            <p className="reference-line">
+              Official references:{' '}
+              <a href={OFFICIAL_LINKS.grading} target="_blank" rel="noreferrer">Academic Structure &amp; Grading</a>
+              {' '}and{' '}
+              <a href={OFFICIAL_LINKS.continuation} target="_blank" rel="noreferrer">Continuation and Graduation Requirements</a>.
+            </p>
+          </section>
+
+          <section className="seo-card" id="honours-classification" aria-labelledby="honours-title">
+            <h2 id="honours-title">NUS Honours Classification</h2>
             <p>
-              Yes. You can add modules manually or import them from NUSMods to estimate how future
-              grades affect your cumulative GPA.
+              These are the common planning thresholds students use when estimating their honours
+              outcome. Some faculties or programmes may impose additional requirements, but the
+              ranges below are the standard headline benchmarks.
             </p>
-          </details>
-        </section>
+            <div className="info-table-wrap">
+              <table className="info-table">
+                <thead>
+                  <tr>
+                    <th>Classification</th>
+                    <th className="metric-col">CAP Threshold</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {HONOURS_ROWS.map(([label, cap]) => (
+                    <tr key={label}>
+                      <td>{label}</td>
+                      <td className="metric-col">{cap}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="seo-card" id="grade-points" aria-labelledby="grade-points-title">
+            <h2 id="grade-points-title">NUS Grade Points</h2>
+            <p>
+              The calculator uses the standard NUS letter-grade mapping below for modules that
+              carry grade points.
+            </p>
+            <div className="info-table-wrap">
+              <table className="info-table">
+                <thead>
+                  <tr>
+                    <th className="grade-col">Grade</th>
+                    <th className="metric-col">Grade Point</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {GRADE_ROWS.map(([grade, point]) => (
+                    <tr key={grade}>
+                      <td className="grade-col">{grade}</td>
+                      <td className="metric-col">{point}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section className="seo-card" id="gpa-tips" aria-labelledby="tips-title">
+            <h2 id="tips-title">GPA Tips for NUS Students</h2>
+            <ul className="seo-list">
+              <li>Use the S/U option strategically for eligible modules when a weaker letter grade would drag your CAP more than the units help you.</li>
+              <li>Track your running CAP in <a href={OFFICIAL_LINKS.myEduRec} target="_blank" rel="noreferrer">myEduRec</a> after every result release and compare it against your own what-if scenarios here.</li>
+              <li>Import your planned semester from <a href={OFFICIAL_LINKS.nusMods} target="_blank" rel="noreferrer">NUSMods</a> to test different grade combinations before bidding or overloading.</li>
+              <li>Check faculty-specific rules before making honours or scholarship assumptions, especially for repeated modules, special programmes, or non-standard grading schemes.</li>
+            </ul>
+          </section>
+
+          <section className="seo-card" id="common-mistakes" aria-labelledby="mistakes-title">
+            <h2 id="mistakes-title">Common Mistakes</h2>
+            <ul className="seo-list">
+              <li>Counting S/U modules toward CAP even though S/U results do not contribute grade points to the weighted average.</li>
+              <li>Mixing modules with assigned units and non-graded results in the same CAP computation.</li>
+              <li>Assuming every programme uses the exact same graduation and honours rules without checking faculty-specific Registrar guidance.</li>
+              <li>Using shortened timetable links instead of the original NUSMods share link when importing future modules.</li>
+            </ul>
+          </section>
+
+          <section className="seo-card" id="official-references" aria-labelledby="references-title">
+            <h2 id="references-title">Official NUS Registrar References</h2>
+            <ul className="seo-list">
+              <li><a href={OFFICIAL_LINKS.grading} target="_blank" rel="noreferrer">NUS Registrar: Academic Structure &amp; Grading</a></li>
+              <li><a href={OFFICIAL_LINKS.continuation} target="_blank" rel="noreferrer">NUS Registrar: Continuation and Graduation Requirements</a></li>
+              <li><a href={OFFICIAL_LINKS.resources} target="_blank" rel="noreferrer">NUS Registrar: Undergraduate Information and Resources</a></li>
+              <li><a href={OFFICIAL_LINKS.myEduRec} target="_blank" rel="noreferrer">myEduRec Student Portal</a></li>
+            </ul>
+          </section>
+
+          <section className="seo-card" id="faq" aria-labelledby="faq-title">
+            <h2 id="faq-title">Frequently Asked Questions</h2>
+            {FAQS.map((item) => (
+              <details className="faq-item" key={item.question}>
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            ))}
+          </section>
+        </div>
       </main>
 
-      <footer>
-        <p>
-          A+/A = 5.0 · A- = 4.5 · B+ = 4.0 · B = 3.5 · B- = 3.0 · C+ = 2.5 · C = 2.0 · D+ = 1.5 · D = 1.0 · F = 0.0
-        </p>
-        <p>S/U-opted, non-graded, and courses without MCs are excluded from GPA computation.</p>
-        <p>Transcript parsing is not perfect. Do check for mistakes and adjust your courses when necessary.</p>
+      <footer className="site-footer">
+        <div className="footer-links">
+          <a href="#about-cap">About CAP</a>
+          <a href="#honours-classification">Honours Classification</a>
+          <a href="#grade-points">Grade Points</a>
+          <a href="#gpa-tips">GPA Tips</a>
+          <a href="#faq">FAQ</a>
+          <a href="/about.html">About</a>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/methodology.html">Methodology</a>
+        </div>
+        <div className="footer-links">
+          <a href={OFFICIAL_LINKS.grading} target="_blank" rel="noreferrer">NUS Grading</a>
+          <a href={OFFICIAL_LINKS.continuation} target="_blank" rel="noreferrer">NUS Registrar</a>
+          <a href={OFFICIAL_LINKS.myEduRec} target="_blank" rel="noreferrer">myEduRec</a>
+          <a href={OFFICIAL_LINKS.nusMods} target="_blank" rel="noreferrer">NUSMods</a>
+          <a href={OFFICIAL_LINKS.github} target="_blank" rel="noreferrer">GitHub</a>
+        </div>
+        <p>A+/A = 5.0 | A- = 4.5 | B+ = 4.0 | B = 3.5 | B- = 3.0 | C+ = 2.5 | C = 2.0 | D+ = 1.5 | D = 1.0 | F = 0.0</p>
+        <p>S/U-opted, non-graded, and modules without assigned units are excluded from GPA computation.</p>
+        <p>Transcript parsing runs in the browser. Check imported results before relying on them for planning.</p>
       </footer>
       <Analytics />
       <SpeedInsights />

@@ -4,9 +4,116 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NUS GPA Calculator with Transcript Upload and CAP Tracker</title>
-    <meta name="description" content="Free NUS GPA calculator and CAP tracker for National University of Singapore students. Upload your unofficial transcript, calculate GPA instantly, import NUSMods modules, and plan future semesters." />
+    <title>NUS GPA Calculator - Upload Transcript, No Manual Entry | Free CAP Calculator</title>
+    <meta name="description" content="Free NUS GPA calculator for National University of Singapore students. Upload your unofficial transcript, calculate CAP instantly, import NUSMods modules, and project future semesters without manual entry." />
+    <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+    <link rel="canonical" href="https://nustranscripttogpacalculator.vercel.app/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NUS GPA Calculator" />
+    <meta property="og:title" content="NUS GPA Calculator - Upload Transcript, No Manual Entry | Free CAP Calculator" />
+    <meta property="og:description" content="Upload your unofficial NUS transcript, calculate CAP instantly, import NUSMods modules, and plan future semesters in one free calculator." />
+    <meta property="og:url" content="https://nustranscripttogpacalculator.vercel.app/" />
+    <meta property="og:image" content="https://nustranscripttogpacalculator.vercel.app/favicon.svg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="NUS GPA Calculator - Upload Transcript, No Manual Entry | Free CAP Calculator" />
+    <meta name="twitter:description" content="Free NUS CAP calculator with transcript upload, NUSMods import, and future semester planning." />
+    <meta name="twitter:image" content="https://nustranscripttogpacalculator.vercel.app/favicon.svg" />
     <meta name="google-site-verification" content="gmk7ZgN0DIYkCaS08LDTyhzsrhQJ-rH6V2tQTSBLAQY" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "NUS GPA Calculator",
+        "url": "https://nustranscripttogpacalculator.vercel.app/",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web",
+        "description": "Free NUS GPA calculator for National University of Singapore students. Upload an unofficial transcript, calculate CAP instantly, import NUSMods modules, and project future semesters.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "publisher": {
+          "@type": "Person",
+          "name": "Kian Shen Teoh"
+        },
+        "sameAs": [
+          "https://github.com/kianshenteoh/nus-transcript-to-gpa-calculator"
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What CAP do you need for First Class Honours at NUS?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A cumulative average point of 4.50 or above is the usual threshold for First Class Honours at NUS, although some faculties or programmes may impose additional requirements."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does the S/U option affect my CAP?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "When you S/U an eligible module, its letter grade is excluded from CAP computation. The module contributes neither grade points nor graded units to the weighted average."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the NUS grading scale?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "NUS uses a 5.0 scale for standard letter-graded modules. A+ and A are 5.0, A- is 4.5, B+ is 4.0, B is 3.5, B- is 3.0, C+ is 2.5, C is 2.0, D+ is 1.5, D is 1.0, and F is 0.0."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is NUS CAP calculated?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "CAP is the weighted average of your module grade points. Multiply each module grade point by its units, add those totals together, then divide by the total number of graded units included in CAP."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Do S/U modules count toward CAP at NUS?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. S/U modules do not count toward CAP because they do not contribute grade points to the weighted average."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use this calculator to project future semesters?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. You can add manual modules or import an original NUSMods timetable link to estimate how planned grades could change your cumulative CAP before results are released."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does this tool upload my transcript to a server?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. The transcript parsing flow stays in the browser so you can extract your modules locally without sending the PDF to an external backend."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Where can I verify my official CAP and academic standing?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Use myEduRec and your unofficial transcript as the official student-facing records, then cross-check edge cases against current NUS Registrar policy pages."
+            }
+          }
+        ]
+      }
+    </script>
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-M905F9MWWE"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
